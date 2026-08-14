@@ -1,0 +1,11 @@
+Model Information:
+* title:	Twin Peaks Black Lodge Remake (low-poly)
+* source:	https://sketchfab.com/3d-models/twin-peaks-black-lodge-remake-low-poly-22fc860b46e441f7a7688492da425f45
+* author:	pan.stasian (https://sketchfab.com/pan_stasian)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Twin Peaks Black Lodge Remake (low-poly)" (https://sketchfab.com/3d-models/twin-peaks-black-lodge-remake-low-poly-22fc860b46e441f7a7688492da425f45) by pan.stasian (https://sketchfab.com/pan_stasian) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

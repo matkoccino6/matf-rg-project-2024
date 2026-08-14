@@ -1,6 +1,10 @@
 {
   "resources": {
     "models": {
+      "black_lodge": {
+        "path": "black_lodge/scene.gltf",
+        "flip_uvs": true
+      }
     }
   },
   "window": {
