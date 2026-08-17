@@ -3,6 +3,7 @@
 
 #include <engine/core/Controller.hpp>
 #include <engine/platform/PlatformEventObserver.hpp>
+#include <engine/resources/ResourcesController.hpp>
 
 namespace engine::blackLodge::app {
     class MainPlatformEventObserver final : public engine::platform::PlatformEventObserver {

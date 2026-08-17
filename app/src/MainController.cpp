@@ -44,12 +44,16 @@ namespace engine::blackLodge::app {
     void MainController::draw() {
         spdlog::debug("MainController::draw");
         auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
-        auto shader   = engine::core::Controller::get<engine::resources::ResourcesController>()->shader("basic");
+        auto shader   = engine::core::Controller::get<engine::resources::ResourcesController>()->shader("lighting");
         auto floor    = engine::core::Controller::get<engine::resources::ResourcesController>()->model("black_lodge");
         shader->use();
-        shader->set_mat4("projection", graphics->projection_matrix());
-        shader->set_mat4("view", graphics->camera()->view_matrix());
-        shader->set_mat4("model", glm::scale(glm::mat4(1.0f), glm::vec3(m_scale)));
+        shader->set_mat4("uProjection", graphics->projection_matrix());
+        shader->set_mat4("uView", graphics->camera()->view_matrix());
+        shader->set_mat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(m_scale)));
+        shader->set_vec3("uLightPos", glm::vec3(40.0f, 18.0f, 53.0f));
+        shader->set_vec3("uLightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+        shader->set_vec3("uViewPos", graphics->camera()->Position);
+        shader->set_float("uShininess", 32.0f);
         floor->draw(shader);
     }
 
