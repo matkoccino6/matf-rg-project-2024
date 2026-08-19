@@ -2,15 +2,18 @@
 #include <spdlog/spdlog.h>
 #include <MainController.hpp>
 #include <GUIController.hpp>
+#include <SettingsController.hpp>
 
 namespace engine::blackLodge::app {
     void BlackLodgeApp::app_setup() {
         spdlog::info("Black Lodge App setup");
 
-        auto main_controller = register_controller<MainController>();
-        auto gui_controller  = register_controller<GUIController>();
+        auto main_controller     = register_controller<MainController>();
+        auto gui_controller      = register_controller<GUIController>();
+        auto settings_controller = register_controller<SettingsController>();
         main_controller->after(engine::core::Controller::get<engine::core::EngineControllersEnd>());
         gui_controller->after(main_controller);
+        settings_controller->after(gui_controller);
     }
 }
 

@@ -3,6 +3,7 @@
 #include <engine/core/Engine.hpp>
 #include <engine/graphics/GraphicsController.hpp>
 #include <memory>
+#include <SettingsController.hpp>
 #include <spdlog/spdlog.h>
 
 namespace engine::blackLodge::app {
@@ -12,6 +13,8 @@ namespace engine::blackLodge::app {
         auto observer = std::make_unique<MainPlatformEventObserver>();
         engine::core::Controller::get<engine::platform::PlatformController>()->register_platform_event_observer(
             std::move(observer));
+        auto graphics                      = engine::core::Controller::get<engine::graphics::GraphicsController>();
+        graphics->perspective_params().Far = 200.0f;
     }
 
     bool MainController::loop() {
@@ -46,14 +49,34 @@ namespace engine::blackLodge::app {
         auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
         auto shader   = engine::core::Controller::get<engine::resources::ResourcesController>()->shader("lighting");
         auto floor    = engine::core::Controller::get<engine::resources::ResourcesController>()->model("black_lodge");
+        auto settings = Controller::get<SettingsController>();
         shader->use();
         shader->set_mat4("uProjection", graphics->projection_matrix());
         shader->set_mat4("uView", graphics->camera()->view_matrix());
         shader->set_mat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(m_scale)));
-        shader->set_vec3("uLightPos", glm::vec3(40.0f, 18.0f, 53.0f));
-        shader->set_vec3("uLightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+        shader->set_vec3("uLightPos[0]", settings->uPLightPos1);
+        shader->set_vec3("uLightPos[1]", settings->uPLightPos2);
+
         shader->set_vec3("uViewPos", graphics->camera()->Position);
-        shader->set_float("uShininess", 32.0f);
+        //shader->set_float("uShininess", settings->m_shininess);
+        shader->set_float("uAmbientStrength", settings->m_ambientStrength);
+
+        shader->set_vec3("uDirLight.direction", settings->uDLightDir);
+        shader->set_vec3("uDirLight.color", settings->uDLightColor);
+        shader->set_float("uDirLight.intensity", settings->uDLightIntensity);
+
+        shader->set_vec3("uPointLights[0].color", settings->uPLightColor1);
+        shader->set_float("uPointLights[0].intensity", settings->uPLightIntensity);
+        shader->set_float("uPointLights[0].constant", 1.0f);
+        shader->set_float("uPointLights[0].linear", 0.07f);
+        shader->set_float("uPointLights[0].quadratic", 0.017f);
+
+        shader->set_vec3("uPointLights[1].color", settings->uPLightColor2);
+        shader->set_float("uPointLights[1].intensity", settings->uPLightIntensity);
+        shader->set_float("uPointLights[1].constant", 1.0f);
+        shader->set_float("uPointLights[1].linear", 0.07f);
+        shader->set_float("uPointLights[1].quadratic", 0.017f);
+
         floor->draw(shader);
     }
 
