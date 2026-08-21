@@ -1,6 +1,6 @@
 //#shader vertex
 #version 330
-#define NUM_LIGHTS 3
+#define NUM_PLIGHTS 2
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 aTexCoords;
@@ -10,14 +10,16 @@ layout (location = 4) in vec3 aBitangent;
 out vec2 TexCoords;
 out vec3 Normal;
 out vec3 FragPos;
-out vec3 TangentLightPos[NUM_LIGHTS - 1];
+out vec3 TangentDLightDir;
+out vec3 TangentLightPos[NUM_PLIGHTS];
 out vec3 TangentViewPos;
 out vec3 TangentFragPos;
 
 uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
-uniform vec3 uLightPos[NUM_LIGHTS - 1];
+uniform vec3 uDLightDir;
+uniform vec3 uLightPos[NUM_PLIGHTS];
 uniform vec3 uViewPos;
 void main() {
     FragPos = vec3(uModel * vec4(aPos, 1.0));
@@ -33,7 +35,8 @@ void main() {
     //A great property of orthogonal matrices (each axis is a perpendicular unit vector) is that the transpose of an orthogonal matrix equals its inverse.
     //This is a great property as inverse is expensive and a transpose isn't.
     mat3 TBN = transpose(mat3(T, B, N));
-    for (int i = 0; i < NUM_LIGHTS - 1; i++) {
+    TangentDLightDir = uDLightDir * TBN;
+    for (int i = 0; i < NUM_PLIGHTS; i++) {
         TangentLightPos[i] = TBN * uLightPos[i];
     }
     TangentViewPos = TBN * uViewPos;
@@ -43,13 +46,14 @@ void main() {
 
 //#shader fragment
 #version 330
-#define NUM_LIGHTS 3
+#define NUM_PLIGHTS 2
 out vec4 FragColor;
 
 in vec2 TexCoords;
 in vec3 Normal;
 in vec3 FragPos;
-in vec3 TangentLightPos[NUM_LIGHTS - 1];
+in vec3 TangentDLightDir;
+in vec3 TangentLightPos[NUM_PLIGHTS];
 in vec3 TangentViewPos;
 in vec3 TangentFragPos;
 
@@ -59,7 +63,6 @@ uniform sampler2D texture_metallic_roughness1;
 uniform sampler2D texture_emissive1;
 
 struct DirLight {
-    vec3 direction;
     vec3 color;
     float intensity;
 };
@@ -71,7 +74,7 @@ struct PointLight {
     float quadratic;
 };
 uniform DirLight uDirLight;
-uniform PointLight uPointLights[NUM_LIGHTS - 1];
+uniform PointLight uPointLights[NUM_PLIGHTS];
 
 const float PI = 3.14159265359;
 uniform float uAmbientStrength = 0.1f;
@@ -134,8 +137,8 @@ vec3 CalcPointLight(PointLight light, vec3 tangentLightPos, vec3 fragPosTangent,
 
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
-    vec3 lightDir = normalize(-light.direction);
+vec3 CalcDirLight(DirLight light, vec3 tanDLightDir, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
+    vec3 lightDir = normalize(-tanDLightDir);
     vec3 halfVec = normalize(viewDir + lightDir);
     vec3 radiance = light.color * light.intensity;
 
@@ -167,8 +170,8 @@ void main() {
     vec3 Lo = vec3(0.0);
     vec3 ambient = uAmbientStrength * albedo;
     vec3 viewDir = normalize(TangentViewPos - TangentFragPos);
-    Lo += CalcDirLight(uDirLight, normal, viewDir, albedo, metallic, roughness, F0);
-    for (int i = 0; i < NUM_LIGHTS - 1; i++) {
+    Lo += CalcDirLight(uDirLight, TangentDLightDir, normal, viewDir, albedo, metallic, roughness, F0);
+    for (int i = 0; i < NUM_PLIGHTS; i++) {
         Lo += CalcPointLight(uPointLights[i], TangentLightPos[i], TangentFragPos, normal, viewDir, albedo, metallic, roughness, F0);
     }
     vec3 emission = vec3(0.0);

@@ -10,11 +10,13 @@
 namespace engine::blackLodge::app {
     class SettingsController final : public engine::core::Controller {
     public:
-        float m_ambientStrength = 0.1f;
-        float m_shininess       = 32.0f;
-        glm::vec3 uPLightPos1   = glm::vec3(10.9f, 17.4f, 52.9f);
-        glm::vec3 uPLightPos2   = glm::vec3(39.9f, 17.4f, 52.9f);
-        glm::vec3 uDLightDir    = glm::vec3(-10.0f);
+        float m_ambientStrength    = 0.1f;
+        float m_shininess          = 32.0f;
+        float m_Far                = 200.0f;
+        glm::vec3 m_CameraPosition = glm::vec3(0.0f, 10.0f, 0.0f);
+        glm::vec3 uPLightPos1      = glm::vec3(10.9f, 17.4f, 52.9f);
+        glm::vec3 uPLightPos2      = glm::vec3(39.9f, 17.4f, 52.9f);
+        glm::vec3 uDLightDir       = glm::vec3(-10.0f);
 
         glm::vec3 uPLightColor1 = glm::vec3(1.0f);
         glm::vec3 uPLightColor2 = glm::vec3(1.0f);
@@ -26,6 +28,8 @@ namespace engine::blackLodge::app {
         std::string_view name() const override {
             return "engine:blackLodge::app::SettingsController";
         };
+
+        void reset();
 
     private:
         void initialize() override;

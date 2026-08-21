@@ -14,7 +14,10 @@ namespace engine::blackLodge::app {
         engine::core::Controller::get<engine::platform::PlatformController>()->register_platform_event_observer(
             std::move(observer));
         auto graphics                      = engine::core::Controller::get<engine::graphics::GraphicsController>();
+        auto settings                      = Controller::get<SettingsController>();
         graphics->perspective_params().Far = 200.0f;
+        auto camera                        = get<engine::graphics::GraphicsController>()->camera();
+        camera->Position                   = settings->m_CameraPosition;
     }
 
     bool MainController::loop() {
@@ -56,12 +59,11 @@ namespace engine::blackLodge::app {
         shader->set_mat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(m_scale)));
         shader->set_vec3("uLightPos[0]", settings->uPLightPos1);
         shader->set_vec3("uLightPos[1]", settings->uPLightPos2);
+        shader->set_vec3("uDLightDir", settings->uDLightDir);
 
         shader->set_vec3("uViewPos", graphics->camera()->Position);
-        //shader->set_float("uShininess", settings->m_shininess);
         shader->set_float("uAmbientStrength", settings->m_ambientStrength);
 
-        shader->set_vec3("uDirLight.direction", settings->uDLightDir);
         shader->set_vec3("uDirLight.color", settings->uDLightColor);
         shader->set_float("uDirLight.intensity", settings->uDLightIntensity);
 
