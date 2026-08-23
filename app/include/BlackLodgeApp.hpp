@@ -6,9 +6,9 @@
 #define MATF_RG_PROJECT_BLAKCKLODGEAPP_HPP
 #include <engine/core/Engine.hpp>
 
-namespace engine::blackLodge::app {
-    class BlackLodgeApp final : public engine::core::App {
-        void app_setup() override;
-    };
-}
-#endif //MATF_RG_PROJECT_BLAKCKLODGEAPP_HPP
+namespace engine::black_lodge::app {
+class BlackLodgeApp final : public engine::core::App {
+    void app_setup() override;
+};
+}// namespace engine::blackLodge::app
+#endif//MATF_RG_PROJECT_BLAKCKLODGEAPP_HPP

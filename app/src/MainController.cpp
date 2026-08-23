@@ -1,12 +1,12 @@
-#include <MainController.hpp>
 #include <GUIController.hpp>
+#include <MainController.hpp>
+#include <SettingsController.hpp>
 #include <engine/core/Engine.hpp>
 #include <engine/graphics/GraphicsController.hpp>
 #include <memory>
-#include <SettingsController.hpp>
 #include <spdlog/spdlog.h>
 
-namespace engine::blackLodge::app {
+namespace engine::black_lodge::app {
     void MainController::initialize() {
         spdlog::info("MainController::initialize");
         engine::graphics::OpenGL::enable_depth_testing();
@@ -17,7 +17,7 @@ namespace engine::blackLodge::app {
         auto settings                      = Controller::get<SettingsController>();
         graphics->perspective_params().Far = 200.0f;
         auto camera                        = get<engine::graphics::GraphicsController>()->camera();
-        camera->Position                   = settings->m_CameraPosition;
+        camera->Position                   = settings->m_camera_position;
     }
 
     bool MainController::loop() {
@@ -57,24 +57,24 @@ namespace engine::blackLodge::app {
         shader->set_mat4("uProjection", graphics->projection_matrix());
         shader->set_mat4("uView", graphics->camera()->view_matrix());
         shader->set_mat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(m_scale)));
-        shader->set_vec3("uLightPos[0]", settings->uPLightPos1);
-        shader->set_vec3("uLightPos[1]", settings->uPLightPos2);
-        shader->set_vec3("uDLightDir", settings->uDLightDir);
+        shader->set_vec3("uLightPos[0]", settings->u_plight_pos1);
+        shader->set_vec3("uLightPos[1]", settings->u_plight_pos2);
+        shader->set_vec3("uDLightDir", settings->u_dlight_dir);
 
         shader->set_vec3("uViewPos", graphics->camera()->Position);
-        shader->set_float("uAmbientStrength", settings->m_ambientStrength);
+        shader->set_float("uAmbientStrength", settings->m_ambient_strength);
 
-        shader->set_vec3("uDirLight.color", settings->uDLightColor);
-        shader->set_float("uDirLight.intensity", settings->uDLightIntensity);
+        shader->set_vec3("uDirLight.color", settings->u_dlight_color);
+        shader->set_float("uDirLight.intensity", settings->u_dlight_intensity);
 
-        shader->set_vec3("uPointLights[0].color", settings->uPLightColor1);
-        shader->set_float("uPointLights[0].intensity", settings->uPLightIntensity);
+        shader->set_vec3("uPointLights[0].color", settings->u_plight_color1);
+        shader->set_float("uPointLights[0].intensity", settings->u_plight_intensity);
         shader->set_float("uPointLights[0].constant", 1.0f);
         shader->set_float("uPointLights[0].linear", 0.07f);
         shader->set_float("uPointLights[0].quadratic", 0.017f);
 
-        shader->set_vec3("uPointLights[1].color", settings->uPLightColor2);
-        shader->set_float("uPointLights[1].intensity", settings->uPLightIntensity);
+        shader->set_vec3("uPointLights[1].color", settings->u_plight_color2);
+        shader->set_float("uPointLights[1].intensity", settings->u_plight_intensity);
         shader->set_float("uPointLights[1].constant", 1.0f);
         shader->set_float("uPointLights[1].linear", 0.07f);
         shader->set_float("uPointLights[1].quadratic", 0.017f);
@@ -119,4 +119,4 @@ namespace engine::blackLodge::app {
     void MainPlatformEventObserver::on_mouse_move(engine::platform::MousePosition position) {
         spdlog::debug("MainPlatformEventObserver::on_mouse_move");
     }
-}
+} // namespace engine::blackLodge::app
