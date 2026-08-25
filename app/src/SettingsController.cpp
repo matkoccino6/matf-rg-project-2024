@@ -23,4 +23,4 @@ void SettingsController::reset() {
     u_plight_intensity = 1.0f;
     u_dlight_intensity = 1.0f;
 }
-}// namespace engine::blackLodge::app
+}// namespace engine::black_lodge::app

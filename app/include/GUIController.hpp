@@ -20,5 +20,5 @@ private:
 
     void draw() override;
 };
-}// namespace engine::blackLodge::app
+}// namespace engine::black_lodge::app
 #endif//MATF_RG_PROJECT_GUICONTROLLER_HPP

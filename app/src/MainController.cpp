@@ -109,7 +109,6 @@ namespace engine::black_lodge::app {
         }
         auto mouse = platform->mouse();
         camera->rotate_camera(mouse.dx, mouse.dy);
-        camera->zoom(mouse.scroll);
     }
 
     void MainPlatformEventObserver::on_key(engine::platform::Key key) {
@@ -119,4 +118,16 @@ namespace engine::black_lodge::app {
     void MainPlatformEventObserver::on_mouse_move(engine::platform::MousePosition position) {
         spdlog::debug("MainPlatformEventObserver::on_mouse_move");
     }
-} // namespace engine::blackLodge::app
+
+    void MainPlatformEventObserver::on_scroll(engine::platform::MousePosition position) {
+        auto gui = engine::core::Controller::get<GUIController>();
+        if (gui->is_enabled()) {
+            return;
+        }
+
+        auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
+        auto camera = graphics->camera();
+        camera->zoom(position.scroll);
+        graphics->perspective_params().FOV = glm::radians(camera->Zoom);
+    }
+} // namespace engine::black_lodge::app

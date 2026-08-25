@@ -10,5 +10,5 @@ namespace engine::black_lodge::app {
 class BlackLodgeApp final : public engine::core::App {
     void app_setup() override;
 };
-}// namespace engine::blackLodge::app
+}// namespace engine::black_lodge::app
 #endif//MATF_RG_PROJECT_BLAKCKLODGEAPP_HPP

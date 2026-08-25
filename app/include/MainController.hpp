@@ -11,6 +11,8 @@ public:
     void on_key(engine::platform::Key key) override;
 
     void on_mouse_move(engine::platform::MousePosition position) override;
+
+    void on_scroll(engine::platform::MousePosition position) override;
 };
 
 class MainController final : public engine::core::Controller {
@@ -40,6 +42,6 @@ private:
     bool m_draw_gui{false};
     bool m_cursor_enabled{true};
 };
-}// namespace engine::blackLodge::app
+}// namespace engine::black_lodge::app
 
 #endif// MAINCONTROLLER_HPP

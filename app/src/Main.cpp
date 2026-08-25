@@ -15,7 +15,7 @@ void BlackLodgeApp::app_setup() {
     gui_controller->after(main_controller);
     settings_controller->after(gui_controller);
 }
-}// namespace engine::blackLodge::app
+}// namespace engine::black_lodge::app
 
 int main(int argc, char **argv) {
     return std::make_unique<engine::black_lodge::app::BlackLodgeApp>()->run(argc, argv);
