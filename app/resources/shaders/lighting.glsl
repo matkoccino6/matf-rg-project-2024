@@ -35,7 +35,7 @@ void main() {
     //A great property of orthogonal matrices (each axis is a perpendicular unit vector) is that the transpose of an orthogonal matrix equals its inverse.
     //This is a great property as inverse is expensive and a transpose isn't.
     mat3 TBN = transpose(mat3(T, B, N));
-    TangentDLightDir = uDLightDir * TBN;
+    TangentDLightDir = TBN * uDLightDir;
     for (int i = 0; i < NUM_PLIGHTS; i++) {
         TangentLightPos[i] = TBN * uLightPos[i];
     }
@@ -60,7 +60,28 @@ in vec3 TangentFragPos;
 uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_normal1;
 uniform sampler2D texture_metallic_roughness1;
+uniform sampler2D texture_metallic1;
+uniform sampler2D texture_roughness1;
+uniform sampler2D texture_occlusion1;
 uniform sampler2D texture_emissive1;
+uniform sampler2D texture_opacity1;
+uniform sampler2D texture_specular_level1;
+uniform sampler2D texture_scattering1;
+uniform bool has_texture_normal1;
+uniform bool has_texture_metallic_roughness1;
+uniform bool has_texture_metallic1;
+uniform bool has_texture_roughness1;
+uniform bool has_texture_occlusion1;
+uniform bool has_texture_emissive1;
+uniform bool has_texture_opacity1;
+uniform bool has_texture_specular_level1;
+uniform bool has_texture_scattering1;
+uniform vec4 uBaseColor;
+uniform float uMetallicFactor;
+uniform float uRoughnessFactor;
+uniform float uOpacity;
+uniform int uAlphaMode;
+uniform float uAlphaCutoff;
 
 struct DirLight {
     vec3 color;
@@ -159,27 +180,45 @@ vec3 CalcDirLight(DirLight light, vec3 tanDLightDir, vec3 normal, vec3 viewDir, 
 }
 void main() {
     //Albedos are done in sRGB color space
-    vec3 albedo = pow(texture(texture_diffuse1, TexCoords).rgb, vec3(2.2));
-    vec3 normal = Normal;
-    normal = texture(texture_normal1, TexCoords).rgb;
-    normal = normalize(normal * 2.0 - 1.0);
-    float metallic = texture(texture_metallic_roughness1, TexCoords).b;
-    float roughness = texture(texture_metallic_roughness1, TexCoords).g;
+    vec4 baseColor = texture(texture_diffuse1, TexCoords) * uBaseColor;
+    if (has_texture_opacity1) {
+        baseColor.a *= texture(texture_opacity1, TexCoords).a;
+    }
+    baseColor.a *= uOpacity;
+    if (uAlphaMode == 1 && baseColor.a < uAlphaCutoff) {
+        discard;
+    }
+    vec3 albedo = baseColor.rgb;
+    vec3 normalMap = texture(texture_normal1, TexCoords).rgb;
+    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(Normal);
+    float metallic = uMetallicFactor;
+    metallic = has_texture_metallic_roughness1 ? texture(texture_metallic_roughness1, TexCoords).b * metallic : metallic;
+    metallic = has_texture_metallic1 ? texture(texture_metallic1, TexCoords).r * uMetallicFactor : metallic;
+    float roughness = uRoughnessFactor;
+    roughness = has_texture_metallic_roughness1 ? texture(texture_metallic_roughness1, TexCoords).g * roughness : roughness;
+    roughness = has_texture_roughness1 ? texture(texture_roughness1, TexCoords).r * uRoughnessFactor : roughness;
+    roughness = max(roughness, 0.04);
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    float specularLevel = has_texture_specular_level1 ? texture(texture_specular_level1, TexCoords).r : 1.0;
+    F0 *= specularLevel;
     vec3 Lo = vec3(0.0);
-    vec3 ambient = uAmbientStrength * albedo;
+    float occlusion = has_texture_occlusion1 ? texture(texture_occlusion1, TexCoords).r : 1.0;
+    vec3 ambient = uAmbientStrength * albedo * occlusion;
+    vec3 scattering = has_texture_scattering1
+    ? texture(texture_scattering1, TexCoords).rgb * albedo * uAmbientStrength * 0.25
+    : vec3(0.0);
     vec3 viewDir = normalize(TangentViewPos - TangentFragPos);
     Lo += CalcDirLight(uDirLight, TangentDLightDir, normal, viewDir, albedo, metallic, roughness, F0);
     for (int i = 0; i < NUM_PLIGHTS; i++) {
         Lo += CalcPointLight(uPointLights[i], TangentLightPos[i], TangentFragPos, normal, viewDir, albedo, metallic, roughness, F0);
     }
     vec3 emission = vec3(0.0);
-    //emission = texture(texture_emissive1, TexCoords).rgb;
-    vec3 color = Lo + ambient + emission;
+    emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);
+    vec3 color = Lo + ambient + scattering + emission;
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
 
 
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(color, baseColor.a);
 }

@@ -2,7 +2,7 @@
   "resources": {
     "models": {
       "black_lodge": {
-        "path": "black_lodge/scene.gltf",
+        "path": "apple_black/source/Black Lodge.fbx",
         "flip_uvs": true
       }
     }

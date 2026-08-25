@@ -1,4 +1,5 @@
 #include <assimp/Importer.hpp>
+#include <assimp/GltfMaterial.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <engine/graphics/OpenGL.hpp>
@@ -6,6 +7,7 @@
 #include <engine/resources/ShaderCompiler.hpp>
 #include <engine/util/Configuration.hpp>
 #include <engine/util/Errors.hpp>
+#include <algorithm>
 #include <spdlog/spdlog.h>
 #include <unordered_set>
 #include <utility>
@@ -152,8 +154,9 @@ namespace engine::resources {
         auto &result = m_textures[name];
         if (!result) {
             spdlog::info("load_texture(path={})", path.string());
-            auto texture = graphics::OpenGL::generate_texture(path, flip_uvs);
-            result       = std::make_unique<Texture>(Texture(texture, type, path, path.stem()));
+            const bool srgb = type == TextureType::Diffuse || type == TextureType::Emissive;
+            auto texture    = graphics::OpenGL::generate_texture(path, flip_uvs, srgb);
+            result          = std::make_unique<Texture>(Texture(texture, type, path, path.stem()));
         }
         return result.get();
     }
@@ -235,18 +238,59 @@ namespace engine::resources {
 
         auto material                   = m_scene->mMaterials[mesh->mMaterialIndex];
         std::vector<Texture *> textures = process_materials(material);
-        m_meshes.emplace_back(Mesh(vertices, indices, std::move(textures)));
+        Material mesh_material;
+        aiColor4D color;
+        if (material->Get(AI_MATKEY_BASE_COLOR, color) != AI_SUCCESS &&
+            material->Get(AI_MATKEY_COLOR_DIFFUSE, color) != AI_SUCCESS) {
+            color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+        mesh_material.base_color = {color.r, color.g, color.b, color.a};
+        material->Get(AI_MATKEY_METALLIC_FACTOR, mesh_material.metallic);
+        material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mesh_material.roughness);
+        material->Get(AI_MATKEY_OPACITY, mesh_material.opacity);
+        aiString alpha_mode;
+        if (material->Get(AI_MATKEY_GLTF_ALPHAMODE, alpha_mode) == AI_SUCCESS) {
+            const std::string_view mode = alpha_mode.C_Str();
+            if (mode == "BLEND") {
+                mesh_material.alpha_mode = AlphaMode::Blend;
+            } else if (mode == "MASK") {
+                mesh_material.alpha_mode = AlphaMode::Mask;
+            }
+        }
+        if (mesh_material.opacity < 1.0f && mesh_material.alpha_mode == AlphaMode::Opaque) {
+            mesh_material.alpha_mode = AlphaMode::Blend;
+        }
+        material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, mesh_material.alpha_cutoff);
+        aiString material_name;
+        material->Get(AI_MATKEY_NAME, material_name);
+        spdlog::info(
+            "material(name={}, base_color=({}, {}, {}, {}), metallic={}, roughness={}, opacity={}, transparent={}, "
+            "alpha_cutoff={}, textures={})",
+            material_name.C_Str(), mesh_material.base_color.r, mesh_material.base_color.g,
+            mesh_material.base_color.b, mesh_material.base_color.a, mesh_material.metallic,
+            mesh_material.roughness, mesh_material.opacity,
+            mesh_material.alpha_mode != AlphaMode::Opaque, mesh_material.alpha_cutoff, textures.size());
+        m_meshes.emplace_back(Mesh(vertices, indices, std::move(textures), mesh_material));
     }
 
     std::vector<Texture *> AssimpSceneProcessor::process_materials(const aiMaterial *material) {
         std::vector<Texture *> textures;
         auto ai_texture_types = {
             aiTextureType_DIFFUSE,
+            aiTextureType_BASE_COLOR,
             aiTextureType_SPECULAR,
+            aiTextureType_SHEEN,
             aiTextureType_NORMALS,
+            aiTextureType_NORMAL_CAMERA,
             aiTextureType_HEIGHT,
             aiTextureType_GLTF_METALLIC_ROUGHNESS,
-            aiTextureType_EMISSIVE
+            aiTextureType_METALNESS,
+            aiTextureType_DIFFUSE_ROUGHNESS,
+            aiTextureType_AMBIENT_OCCLUSION,
+            aiTextureType_EMISSIVE,
+            aiTextureType_EMISSION_COLOR,
+            aiTextureType_OPACITY,
+            aiTextureType_TRANSMISSION
         };
 
         for (auto ai_texture_type: ai_texture_types) {
@@ -258,24 +302,106 @@ namespace engine::resources {
     void AssimpSceneProcessor::process_material_type(std::vector<Texture *> &textures, const aiMaterial *material,
                                                      aiTextureType type) {
         auto material_count = material->GetTextureCount(type);
+        aiString material_name_string;
+        material->Get(AI_MATKEY_NAME, material_name_string);
+        const std::string material_name = material_name_string.C_Str();
+        const bool is_fbx               = m_model_path.extension() == ".fbx";
+        const auto texture_search_root  =
+                is_fbx ? m_model_path.parent_path().parent_path() : m_model_path.parent_path();
+        bool loaded_for_type = false;
+
+        auto load_texture = [&](const std::filesystem::path &texture_path) {
+            if (!exists(texture_path)) {
+                return false;
+            }
+            Texture *texture = m_resources_controller->texture(texture_path.string(), texture_path,
+                                                               assimp_texture_type_to_engine(type));
+            textures.emplace_back(texture);
+            loaded_for_type = true;
+            return true;
+        };
+
+        auto find_fbx_texture = [&](std::string_view suffix) {
+            if (!is_fbx || material_name.empty()) {
+                return;
+            }
+            const std::string prefix = material_name + std::string(suffix);
+            for (const auto &entry: std::filesystem::recursive_directory_iterator(texture_search_root)) {
+                if (entry.is_regular_file() && entry.path().stem().string().starts_with(prefix)) {
+                    load_texture(entry.path());
+                    return;
+                }
+            }
+        };
+
         for (uint32_t i = 0; i < material_count; ++i) {
             aiString ai_texture_path_string;
             material->GetTexture(type, i, &ai_texture_path_string);
-            std::filesystem::path texture_path = m_model_path.parent_path() / ai_texture_path_string.C_Str();
-            Texture *texture                   = m_resources_controller->texture(texture_path.string(), texture_path,
-                                                               assimp_texture_type_to_engine(type));
-            textures.emplace_back(texture);
+            std::string texture_reference = ai_texture_path_string.C_Str();
+            std::replace(texture_reference.begin(), texture_reference.end(), '\\', '/');
+            std::filesystem::path texture_path = texture_reference;
+            if (texture_path.is_relative()) {
+                texture_path = m_model_path.parent_path() / texture_path;
+            }
+            if (!exists(texture_path)) {
+                std::string texture_name = texture_path.filename().string();
+                for (const auto &entry: std::filesystem::recursive_directory_iterator(texture_search_root)) {
+                    if (entry.is_regular_file() && entry.path().filename() == texture_name) {
+                        texture_path = entry.path();
+                        break;
+                    }
+                }
+            }
+            if (!exists(texture_path)) {
+                spdlog::warn("Texture referenced by model {} was not found: {}", m_model_path.string(),
+                             texture_reference);
+                continue;
+            }
+            load_texture(texture_path);
+        }
+
+        if (!loaded_for_type) {
+            switch (type) {
+            case aiTextureType_DIFFUSE: find_fbx_texture("_Base_Color");
+                break;
+            case aiTextureType_NORMALS: find_fbx_texture("_Normal_OpenGL");
+                break;
+            case aiTextureType_METALNESS: find_fbx_texture("_Metallic");
+                break;
+            case aiTextureType_DIFFUSE_ROUGHNESS: find_fbx_texture("_Roughness");
+                break;
+            case aiTextureType_AMBIENT_OCCLUSION: find_fbx_texture("_Mixed_AO");
+                break;
+            case aiTextureType_EMISSIVE: find_fbx_texture("_Emissive");
+                break;
+            case aiTextureType_OPACITY: find_fbx_texture("_Opacity");
+                break;
+            case aiTextureType_SPECULAR: find_fbx_texture("_Specular_level");
+                break;
+            case aiTextureType_TRANSMISSION: find_fbx_texture("_Scattering");
+                break;
+            default: break;
+            }
         }
     }
 
     TextureType AssimpSceneProcessor::assimp_texture_type_to_engine(aiTextureType type) {
         switch (type) {
         case aiTextureType_DIFFUSE: return TextureType::Diffuse;
-        case aiTextureType_SPECULAR: return TextureType::Specular;
+        case aiTextureType_BASE_COLOR: return TextureType::Diffuse;
+        case aiTextureType_SPECULAR: return TextureType::SpecularLevel;
+        case aiTextureType_SHEEN: return TextureType::SpecularLevel;
         case aiTextureType_HEIGHT: return TextureType::Height;
         case aiTextureType_NORMALS: return TextureType::Normal;
+        case aiTextureType_NORMAL_CAMERA: return TextureType::Normal;
         case aiTextureType_GLTF_METALLIC_ROUGHNESS: return TextureType::MetallicRoughness;
+        case aiTextureType_METALNESS: return TextureType::Metallic;
+        case aiTextureType_DIFFUSE_ROUGHNESS: return TextureType::Roughness;
+        case aiTextureType_AMBIENT_OCCLUSION: return TextureType::Occlusion;
         case aiTextureType_EMISSIVE: return TextureType::Emissive;
+        case aiTextureType_EMISSION_COLOR: return TextureType::Emissive;
+        case aiTextureType_OPACITY: return TextureType::Opacity;
+        case aiTextureType_TRANSMISSION: return TextureType::Scattering;
         default: RG_SHOULD_NOT_REACH_HERE("Engine currently doesn't support the aiTextureType: {}",
                                           static_cast<int>(type));
         }

@@ -24,6 +24,21 @@ struct Vertex {
     glm::vec3 Bitangent;
 };
 
+enum class AlphaMode {
+    Opaque,
+    Mask,
+    Blend,
+};
+
+struct Material {
+    glm::vec4 base_color{1.0f};
+    float metallic{0.0f};
+    float roughness{1.0f};
+    float opacity{1.0f};
+    float alpha_cutoff{0.5f};
+    AlphaMode alpha_mode{AlphaMode::Opaque};
+};
+
 /**
 * @class Mesh
 * @brief Represents a mesh in the model in the OpenGL context.
@@ -51,11 +66,12 @@ private:
     * @param textures The textures in the mesh.
      */
     Mesh(const std::vector<Vertex> &vertices, const std::vector<uint32_t> &indices,
-         std::vector<Texture *> textures);
+         std::vector<Texture *> textures, Material material);
 
     uint32_t m_vao{0};
     uint32_t m_num_indices{0};
     std::vector<Texture *> m_textures;
+    Material m_material;
 };
 }// namespace engine::resources
 
