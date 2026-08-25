@@ -20,11 +20,16 @@ enum class TextureType {
     Regular,
     Diffuse,
     Specular,
+    SpecularLevel,
     Normal,
     Height,
     MetallicRoughness,
+    Metallic,
+    Roughness,
     Occlusion,
     Emissive,
+    Opacity,
+    Scattering,
 };
 
 /**

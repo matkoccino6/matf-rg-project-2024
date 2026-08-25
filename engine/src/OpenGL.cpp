@@ -22,7 +22,7 @@ int32_t OpenGL::shader_type_to_opengl_type(resources::ShaderType type) {
     }
 }
 
-uint32_t OpenGL::generate_texture(const std::filesystem::path &path, bool flip_uvs) {
+uint32_t OpenGL::generate_texture(const std::filesystem::path &path, bool flip_uvs, bool srgb) {
     uint32_t texture_id = 0;
     CHECKED_GL_CALL(glGenTextures, 1, &texture_id);
 
@@ -36,7 +36,10 @@ uint32_t OpenGL::generate_texture(const std::filesystem::path &path, bool flip_u
         int32_t format = texture_format(nr_components);
 
         CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, texture_id);
-        CHECKED_GL_CALL(glTexImage2D, GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        const int32_t internal_format =
+                srgb && (format == GL_RGB || format == GL_RGBA) ? (format == GL_RGBA ? GL_SRGB_ALPHA : GL_SRGB) : format;
+        CHECKED_GL_CALL(glTexImage2D, GL_TEXTURE_2D, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE,
+                        data);
         CHECKED_GL_CALL(glGenerateMipmap, GL_TEXTURE_2D);
 
         CHECKED_GL_CALL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
