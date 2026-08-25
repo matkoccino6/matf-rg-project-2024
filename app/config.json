@@ -2,14 +2,14 @@
   "resources": {
     "models": {
       "black_lodge": {
-        "path": "black_lodge/scene.gltf",
+        "path": "apple_black/source/Black Lodge.fbx",
         "flip_uvs": true
       }
     }
   },
   "window": {
-    "height": 600,
+    "height": 720,
     "title": "Hello, window!",
-    "width": 800
+    "width": 1280
   }
 }
