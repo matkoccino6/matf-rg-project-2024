@@ -25,6 +25,8 @@ public:
     float u_plight_intensity = 1.0f;
     float u_dlight_intensity = 1.0f;
 
+    float u_exposure = 1.0f;
+
     std::string_view name() const override {
         return "engine:black_lodge::app::SettingsController";
     };

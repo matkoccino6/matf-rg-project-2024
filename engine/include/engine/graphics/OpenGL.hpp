@@ -135,6 +135,23 @@ public:
     static void clear_buffers();
 
     /**
+    * @brief Sets the viewport dimensions.
+    */
+    static void set_viewport(int width, int height);
+
+    /**
+    * @brief Draws a texture over the entire viewport.
+    */
+    static void draw_fullscreen_texture(const resources::Shader *shader, uint32_t texture);
+
+    /**
+    * @brief Draws a scene texture combined with a bloom texture over the entire viewport.
+    */
+    static void draw_fullscreen_composite(const resources::Shader *shader,
+                                          uint32_t scene_texture,
+                                          uint32_t bloom_texture);
+
+    /**
     * @brief Retrieve the shader compilation error log message.
     * @param shader_id Shader id for which the compilation failed.
     * @returns shader compilation error message.

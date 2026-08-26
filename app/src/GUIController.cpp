@@ -51,6 +51,10 @@ void GUIController::draw() {
             ImGui::SliderFloat("Far", &graphics->perspective_params().Far, 0.0f, 1000.0f);
             ImGui::EndTabItem();
         }
+        if (ImGui::BeginTabItem("Post Processing")) {
+            ImGui::SliderFloat("Exposure", &settings->u_exposure, 0.0f, 20.0f);
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
         if (ImGui::Button("Reset")) {
             settings->reset();

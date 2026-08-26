@@ -47,7 +47,8 @@ void main() {
 //#shader fragment
 #version 330
 #define NUM_PLIGHTS 2
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec4 BrightColor;
 
 in vec2 TexCoords;
 in vec3 Normal;
@@ -216,9 +217,7 @@ void main() {
     vec3 emission = vec3(0.0);
     emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);
     vec3 color = Lo + ambient + scattering + emission;
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0 / 2.2));
-
-
     FragColor = vec4(color, baseColor.a);
+    float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    BrightColor = brightness > 1.0 ? vec4(FragColor.rgb, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
 }
