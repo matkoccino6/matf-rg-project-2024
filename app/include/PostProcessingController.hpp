@@ -4,6 +4,7 @@
 
 #ifndef MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
 #define MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
+#include <array>
 #include <engine/core/Controller.hpp>
 #include <engine/graphics/Framebuffer.hpp>
 #include <engine/graphics/GraphicsController.hpp>

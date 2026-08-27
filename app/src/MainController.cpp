@@ -79,6 +79,8 @@ void MainController::draw() {
     shader->set_float("uPointLights[1].linear", 0.07f);
     shader->set_float("uPointLights[1].quadratic", 0.017f);
 
+    shader->set_float("rFactor", settings->u_r_factor);
+
     floor->draw(shader);
 }
 

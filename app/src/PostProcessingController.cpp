@@ -1,5 +1,6 @@
 #include <PostProcessingController.hpp>
 #include <SettingsController.hpp>
+#include <algorithm>
 #include <engine/core/Engine.hpp>
 #include <engine/graphics/OpenGL.hpp>
 #include <engine/platform/PlatformController.hpp>
@@ -43,7 +44,8 @@ void PostProcessingController::draw() {
     engine::graphics::OpenGL::disable_depth_testing();
 
     uint32_t source_texture = m_scene_buffer->color_texture(1);
-    for (int pass = 0; pass < 10; ++pass) {
+    const int blur_passes = std::clamp(settings->u_bloom_blur_passes, 1, 20);
+    for (int pass = 0; pass < blur_passes; ++pass) {
         const int target = pass % 2;
         m_blur_buffers[target]->bind();
         engine::graphics::OpenGL::set_viewport(m_blur_buffers[target]->width(),

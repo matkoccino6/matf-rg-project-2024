@@ -49,10 +49,12 @@ void GUIController::draw() {
         if (ImGui::BeginTabItem("Global")) {
             ImGui::SliderFloat("Ambient Strength", &settings->m_ambient_strength, 0.0f, 1.0f);
             ImGui::SliderFloat("Far", &graphics->perspective_params().Far, 0.0f, 1000.0f);
+            ImGui::SliderFloat("Roughness Factor", &settings->u_r_factor, 0.0f, 1.0f);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Post Processing")) {
             ImGui::SliderFloat("Exposure", &settings->u_exposure, 0.0f, 20.0f);
+            ImGui::SliderInt("Bloom blur passes", &settings->u_bloom_blur_passes, 1, 20);
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
