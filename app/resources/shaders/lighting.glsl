@@ -81,6 +81,8 @@ uniform vec4 uBaseColor;
 uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform float uOpacity;
+uniform float uEmissiveFactor = 1.0f;
+uniform float uThreshold = 1.0f;
 uniform int uAlphaMode;
 uniform float uAlphaCutoff;
 uniform float rFactor = 0.15;
@@ -220,15 +222,15 @@ void main() {
     }
     vec3 emission = vec3(0.0);
     emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);
+    emission *= uEmissiveFactor;
     vec3 color = Lo + ambient + scattering + emission;
     FragColor = vec4(color, baseColor.a);
     float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-    float threshold = 1.0;
     float knee = 0.25;
-    float soft = brightness - threshold + knee;
+    float soft = brightness - uThreshold + knee;
     soft = clamp(soft, 0.0, knee);
     soft = soft * soft / (4.0 * knee + 0.0001);
-    float contribution = max(soft, brightness - threshold);
+    float contribution = max(soft, brightness - uThreshold);
     contribution /= max(brightness, 0.0001);
     //BrightColor = brightness > 1.0 ? vec4(FragColor.rgb, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
     BrightColor = vec4(color * contribution, 1.0);

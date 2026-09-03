@@ -27,6 +27,8 @@ public:
 
     float u_exposure = 1.0f;
     float u_r_factor = 0.15f;
+    float u_emissive_factor = 1.0f;
+    float u_bloom_threshold = 1.0f;
     int u_bloom_blur_passes = 14;
 
     std::string_view name() const override {

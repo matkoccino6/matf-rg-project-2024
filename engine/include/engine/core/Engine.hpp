@@ -15,7 +15,9 @@
 #include <engine/platform/PlatformController.hpp>
 #include <engine/platform/Window.hpp>
 
+#include <engine/graphics/Bloom.hpp>
 #include <engine/graphics/Camera.hpp>
+#include <engine/graphics/Framebuffer.hpp>
 #include <engine/graphics/OpenGL.hpp>
 
 #include <engine/util/ArgParser.hpp>

@@ -4,13 +4,9 @@
 
 #ifndef MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
 #define MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
-#include <array>
 #include <engine/core/Controller.hpp>
-#include <engine/graphics/Framebuffer.hpp>
-#include <engine/graphics/GraphicsController.hpp>
+#include <engine/graphics/Bloom.hpp>
 #include <engine/platform/PlatformEventObserver.hpp>
-#include <engine/resources/ResourcesController.hpp>
-#include <memory>
 
 namespace engine::black_lodge::app {
 class PostProcessingController final : public engine::core::Controller {
@@ -37,10 +33,7 @@ private:
     void draw() override;
     void terminate() override;
 
-    std::unique_ptr<engine::graphics::Framebuffer> m_scene_buffer;
-    std::array<std::unique_ptr<engine::graphics::Framebuffer>, 2> m_blur_buffers;
-    engine::resources::Shader *m_shader{};
-    engine::resources::Shader *m_blur_shader{};
+    engine::graphics::Bloom m_bloom;
 };
 }// namespace engine::black_lodge::app
 #endif//MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
