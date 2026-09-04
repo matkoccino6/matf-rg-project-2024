@@ -20,11 +20,12 @@ out vec4 FragColor;
 uniform sampler2D sceneTexture;
 uniform sampler2D bloomTexture;
 uniform float exposure = 1.0;
-
+uniform float bloomIntensity = 0.04;
 void main() {
     const float gamma = 2.2;
     vec3 hdrColor = texture(sceneTexture, TexCoords).rgb;
-    hdrColor += texture(bloomTexture, TexCoords).rgb;
+    vec3 bloomColor = texture(bloomTexture, TexCoords).rgb;
+    hdrColor = mix(hdrColor, bloomColor, bloomIntensity);
     vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
     mapped = pow(mapped, vec3(1.0 / gamma));
     FragColor = vec4(mapped, 1.0);

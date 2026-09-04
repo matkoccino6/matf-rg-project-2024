@@ -28,8 +28,9 @@ public:
     float u_exposure = 1.0f;
     float u_r_factor = 0.15f;
     float u_emissive_factor = 1.0f;
-    float u_bloom_threshold = 1.0f;
-    int u_bloom_blur_passes = 14;
+    int u_bloom_mip_levels = 6;
+    float u_bloom_filter_radius = 0.005f;
+    float u_bloom_intensity = 0.04f;
 
     std::string_view name() const override {
         return "engine:black_lodge::app::SettingsController";

@@ -48,7 +48,6 @@ void main() {
 #version 330
 #define NUM_PLIGHTS 2
 layout (location = 0) out vec4 FragColor;
-layout (location = 1) out vec4 BrightColor;
 
 in vec2 TexCoords;
 in vec3 Normal;
@@ -82,7 +81,6 @@ uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform float uOpacity;
 uniform float uEmissiveFactor = 1.0f;
-uniform float uThreshold = 1.0f;
 uniform int uAlphaMode;
 uniform float uAlphaCutoff;
 uniform float rFactor = 0.15;
@@ -193,7 +191,7 @@ void main() {
     }
     vec3 albedo = baseColor.rgb;
     vec3 normalMap = texture(texture_normal1, TexCoords).rgb;
-    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(Normal);
+    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(vec3(0.0, 0.0, 1.0));
     vec3 normalDx = dFdx(normal);
     vec3 normalDy = dFdy(normal);
     float metallic = uMetallicFactor;
@@ -225,13 +223,4 @@ void main() {
     emission *= uEmissiveFactor;
     vec3 color = Lo + ambient + scattering + emission;
     FragColor = vec4(color, baseColor.a);
-    float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-    float knee = 0.25;
-    float soft = brightness - uThreshold + knee;
-    soft = clamp(soft, 0.0, knee);
-    soft = soft * soft / (4.0 * knee + 0.0001);
-    float contribution = max(soft, brightness - uThreshold);
-    contribution /= max(brightness, 0.0001);
-    //BrightColor = brightness > 1.0 ? vec4(FragColor.rgb, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
-    BrightColor = vec4(color * contribution, 1.0);
 }

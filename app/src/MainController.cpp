@@ -81,7 +81,6 @@ void MainController::draw() {
 
     shader->set_float("rFactor", settings->u_r_factor);
     shader->set_float("uEmissiveFactor", settings->u_emissive_factor);
-    shader->set_float("uThreshold", settings->u_bloom_threshold);
 
     floor->draw(shader);
 }

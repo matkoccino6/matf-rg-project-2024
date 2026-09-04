@@ -13,7 +13,8 @@ void PostProcessingController::initialize() {
     m_bloom.initialize(platform->window()->width(),
                        platform->window()->height(),
                        resources->shader("post_processing"),
-                       resources->shader("blur"));
+                       resources->shader("bloom_downsample"),
+                       resources->shader("bloom_upsample"));
     platform->register_platform_event_observer(std::make_unique<ResizeObserver>(this));
 }
 
@@ -23,7 +24,8 @@ void PostProcessingController::begin_draw() {
 
 void PostProcessingController::draw() {
     auto settings = get<SettingsController>();
-    m_bloom.apply(settings->u_exposure, settings->u_bloom_blur_passes);
+    m_bloom.apply(settings->u_exposure, settings->u_bloom_mip_levels, settings->u_bloom_filter_radius,
+                  settings->u_bloom_intensity);
 }
 
 void PostProcessingController::terminate() {
