@@ -1,7 +1,3 @@
-//
-// Created by mateja on 17. 8. 2026..
-//
-
 #ifndef MATF_RG_PROJECT_SETTINGS_HPP
 #define MATF_RG_PROJECT_SETTINGS_HPP
 #include <engine/core/Controller.hpp>
@@ -10,7 +6,7 @@
 namespace engine::black_lodge::app {
 class SettingsController final : public engine::core::Controller {
 public:
-    float m_ambient_strength = 0.1f;
+    float m_ambient_strength = 0.05f;
     float m_shininess = 32.0f;
     float m_far = 200.0f;
     glm::vec3 m_camera_position = glm::vec3(0.0f, 10.0f, 0.0f);
@@ -42,4 +38,4 @@ private:
     void initialize() override;
 };
 }// namespace engine::black_lodge::app
-#endif//MATF_RG_PROJECT_SETTINGS_HPP
+#endif

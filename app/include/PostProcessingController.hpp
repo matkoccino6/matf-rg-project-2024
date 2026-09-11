@@ -1,7 +1,3 @@
-//
-// Created by mateja on 26. 8. 2026..
-//
-
 #ifndef MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
 #define MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
 #include <engine/core/Controller.hpp>
@@ -36,4 +32,4 @@ private:
     engine::graphics::Bloom m_bloom;
 };
 }// namespace engine::black_lodge::app
-#endif//MATF_RG_PROJECT_POSTPROCESSINGCONTROLLER_HPP
+#endif

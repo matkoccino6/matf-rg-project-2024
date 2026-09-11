@@ -43,12 +43,12 @@ void GUIController::draw() {
 
             ImGui::ColorEdit3("Point Light Color 1", glm::value_ptr(settings->u_plight_color1));
             ImGui::ColorEdit3("Point Light Color 2", glm::value_ptr(settings->u_plight_color2));
-            ImGui::SliderFloat("Point Light Intensity", &settings->u_plight_intensity, 0.0f, 20.0f);
+            ImGui::SliderFloat("Point Light Intensity", &settings->u_plight_intensity, 0.0f, 1000.0f);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Global")) {
             ImGui::SliderFloat("Ambient Strength", &settings->m_ambient_strength, 0.0f, 1.0f);
-            ImGui::SliderFloat("Far", &graphics->perspective_params().Far, 0.0f, 1000.0f);
+            ImGui::SliderFloat("Far", &settings->m_far, 0.2f, 1000.0f);
             ImGui::SliderFloat("Roughness Factor", &settings->u_r_factor, 0.0f, 1.0f);
             ImGui::SliderFloat("Emissive Factor", &settings->u_emissive_factor, 0.0f, 1000.0f);
             ImGui::EndTabItem();

@@ -3,7 +3,6 @@
 
 #include <engine/core/Controller.hpp>
 #include <engine/platform/PlatformEventObserver.hpp>
-#include <engine/resources/ResourcesController.hpp>
 
 namespace engine::black_lodge::app {
 class MainPlatformEventObserver final : public engine::platform::PlatformEventObserver {
@@ -44,4 +43,4 @@ private:
 };
 }// namespace engine::black_lodge::app
 
-#endif// MAINCONTROLLER_HPP
+#endif
