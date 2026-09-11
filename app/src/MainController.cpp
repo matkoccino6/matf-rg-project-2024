@@ -1,8 +1,10 @@
 #include <GUIController.hpp>
 #include <MainController.hpp>
 #include <SettingsController.hpp>
+#include <ShadowController.hpp>
 #include <engine/core/Engine.hpp>
 #include <engine/graphics/GraphicsController.hpp>
+#include <engine/graphics/OpenGL.hpp>
 #include <memory>
 #include <spdlog/spdlog.h>
 
@@ -15,7 +17,7 @@ void MainController::initialize() {
             std::move(observer));
     auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
     auto settings = Controller::get<SettingsController>();
-    graphics->perspective_params().Far = 200.0f;
+    graphics->perspective_params().Far = settings->m_far;
     auto camera = get<engine::graphics::GraphicsController>()->camera();
     camera->Position = settings->m_camera_position;
 }
@@ -40,6 +42,8 @@ void MainController::poll_events() {
 void MainController::update() {
     spdlog::debug("MainController::update");
     update_camera();
+    auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
+    graphics->perspective_params().Far = Controller::get<SettingsController>()->m_far;
 }
 
 void MainController::begin_draw() {
@@ -53,10 +57,14 @@ void MainController::draw() {
     auto shader = engine::core::Controller::get<engine::resources::ResourcesController>()->shader("lighting");
     auto floor = engine::core::Controller::get<engine::resources::ResourcesController>()->model("black_lodge");
     auto settings = Controller::get<SettingsController>();
+    const auto model = glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
+
+    engine::graphics::OpenGL::set_viewport(
+            graphics->perspective_params().Width, graphics->perspective_params().Height);
     shader->use();
     shader->set_mat4("uProjection", graphics->projection_matrix());
     shader->set_mat4("uView", graphics->camera()->view_matrix());
-    shader->set_mat4("uModel", glm::scale(glm::mat4(1.0f), glm::vec3(m_scale)));
+    shader->set_mat4("uModel", model);
     shader->set_vec3("uLightPos[0]", settings->u_plight_pos1);
     shader->set_vec3("uLightPos[1]", settings->u_plight_pos2);
     shader->set_vec3("uDLightDir", settings->u_dlight_dir);
@@ -81,6 +89,20 @@ void MainController::draw() {
 
     shader->set_float("rFactor", settings->u_r_factor);
     shader->set_float("uEmissiveFactor", settings->u_emissive_factor);
+    const auto shadows = Controller::get<ShadowController>();
+    shader->set_mat4("uLightSpaceMatrix", shadows->directional_shadow_map().light_view_projection());
+    shader->set_vec3("uDirectionalShadowLightDir", settings->u_dlight_dir);
+    shader->set_int("uShadowMap", ShadowController::directional_texture_unit());
+    shader->set_bool("uUseShadowMap", true);
+    shader->set_int("uPointShadowMaps[0]", ShadowController::point_texture_unit(0));
+    shader->set_int("uPointShadowMaps[1]", ShadowController::point_texture_unit(1));
+    shader->set_vec3("uPointShadowLightPos1", settings->u_plight_pos1);
+    shader->set_vec3("uPointShadowLightPos2", settings->u_plight_pos2);
+    shader->set_float("uPointShadowFarPlane", shadows->point_shadow_far_plane());
+    shader->set_bool("uUsePointShadowMap", true);
+    shadows->directional_shadow_map().bind_texture(ShadowController::directional_texture_unit());
+    shadows->point_shadow_map(0).bind_texture(ShadowController::point_texture_unit(0));
+    shadows->point_shadow_map(1).bind_texture(ShadowController::point_texture_unit(1));
 
     floor->draw(shader);
 }
