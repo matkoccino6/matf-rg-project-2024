@@ -22,5 +22,11 @@ void SettingsController::reset() {
 
     u_plight_intensity = 1.0f;
     u_dlight_intensity = 1.0f;
+    u_exposure = 1.0f;
+    u_r_factor = 0.15f;
+    u_bloom_mip_levels = 6;
+    u_bloom_filter_radius = 0.005f;
+    u_emissive_factor = 1.0f;
+    u_bloom_intensity = 0.04f;
 }
-}// namespace engine::blackLodge::app
+}// namespace engine::black_lodge::app

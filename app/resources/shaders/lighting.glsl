@@ -47,7 +47,7 @@ void main() {
 //#shader fragment
 #version 330
 #define NUM_PLIGHTS 2
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
 
 in vec2 TexCoords;
 in vec3 Normal;
@@ -80,9 +80,10 @@ uniform vec4 uBaseColor;
 uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform float uOpacity;
+uniform float uEmissiveFactor = 1.0f;
 uniform int uAlphaMode;
 uniform float uAlphaCutoff;
-
+uniform float rFactor = 0.15;
 struct DirLight {
     vec3 color;
     float intensity;
@@ -190,14 +191,18 @@ void main() {
     }
     vec3 albedo = baseColor.rgb;
     vec3 normalMap = texture(texture_normal1, TexCoords).rgb;
-    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(Normal);
+    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(vec3(0.0, 0.0, 1.0));
+    vec3 normalDx = dFdx(normal);
+    vec3 normalDy = dFdy(normal);
     float metallic = uMetallicFactor;
     metallic = has_texture_metallic_roughness1 ? texture(texture_metallic_roughness1, TexCoords).b * metallic : metallic;
     metallic = has_texture_metallic1 ? texture(texture_metallic1, TexCoords).r * uMetallicFactor : metallic;
     float roughness = uRoughnessFactor;
     roughness = has_texture_metallic_roughness1 ? texture(texture_metallic_roughness1, TexCoords).g * roughness : roughness;
     roughness = has_texture_roughness1 ? texture(texture_roughness1, TexCoords).r * uRoughnessFactor : roughness;
-    roughness = max(roughness, 0.04);
+    //Attempt to reduce specular aliasing, increases roughness where the normal changes rapidly
+    float normalVariance = 0.5 * (dot(normalDx, normalDx) + dot(normalDy, normalDy));
+    roughness = clamp(sqrt(roughness * roughness + normalVariance), rFactor, 1.0);
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
     float specularLevel = has_texture_specular_level1 ? texture(texture_specular_level1, TexCoords).r : 1.0;
@@ -215,10 +220,7 @@ void main() {
     }
     vec3 emission = vec3(0.0);
     emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);
+    emission *= uEmissiveFactor;
     vec3 color = Lo + ambient + scattering + emission;
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0 / 2.2));
-
-
     FragColor = vec4(color, baseColor.a);
 }

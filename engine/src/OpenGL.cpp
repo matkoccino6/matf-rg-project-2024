@@ -180,6 +180,92 @@ void OpenGL::clear_buffers() {
     CHECKED_GL_CALL(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
+void OpenGL::set_viewport(int width, int height) {
+    CHECKED_GL_CALL(glViewport, 0, 0, width, height);
+}
+
+void OpenGL::draw_fullscreen_texture(const resources::Shader *shader, uint32_t texture) {
+    static uint32_t vao = 0;
+    static uint32_t vbo = 0;
+    if (vao == 0) {
+        constexpr float vertices[] = {
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, -1.0f, 1.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, 1.0f, 0.0f, 1.0f};
+
+        CHECKED_GL_CALL(glGenVertexArrays, 1, &vao);
+        CHECKED_GL_CALL(glGenBuffers, 1, &vbo);
+        CHECKED_GL_CALL(glBindVertexArray, vao);
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, vbo);
+        CHECKED_GL_CALL(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 0);
+        CHECKED_GL_CALL(glVertexAttribPointer, 0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 1);
+        CHECKED_GL_CALL(glVertexAttribPointer, 1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                        reinterpret_cast<void *>(2 * sizeof(float)));
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, 0);
+        CHECKED_GL_CALL(glBindVertexArray, 0);
+    }
+
+    shader->use();
+    shader->set_int("screenTexture", 0);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, texture);
+    CHECKED_GL_CALL(glBindVertexArray, vao);
+    CHECKED_GL_CALL(glDrawArrays, GL_TRIANGLES, 0, 6);
+    CHECKED_GL_CALL(glBindVertexArray, 0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+}
+
+void OpenGL::draw_fullscreen_composite(const resources::Shader *shader,
+                                       uint32_t scene_texture,
+                                       uint32_t bloom_texture) {
+    shader->use();
+    shader->set_int("sceneTexture", 0);
+    shader->set_int("bloomTexture", 1);
+
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, scene_texture);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE1);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, bloom_texture);
+
+    static uint32_t vao = 0;
+    static uint32_t vbo = 0;
+    if (vao == 0) {
+        constexpr float vertices[] = {
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, -1.0f, 1.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, 1.0f, 0.0f, 1.0f};
+
+        CHECKED_GL_CALL(glGenVertexArrays, 1, &vao);
+        CHECKED_GL_CALL(glGenBuffers, 1, &vbo);
+        CHECKED_GL_CALL(glBindVertexArray, vao);
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, vbo);
+        CHECKED_GL_CALL(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 0);
+        CHECKED_GL_CALL(glVertexAttribPointer, 0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 1);
+        CHECKED_GL_CALL(glVertexAttribPointer, 1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                        reinterpret_cast<void *>(2 * sizeof(float)));
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, 0);
+        CHECKED_GL_CALL(glBindVertexArray, 0);
+    }
+
+    CHECKED_GL_CALL(glBindVertexArray, vao);
+    CHECKED_GL_CALL(glDrawArrays, GL_TRIANGLES, 0, 6);
+    CHECKED_GL_CALL(glBindVertexArray, 0);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE1);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+}
+
 uint32_t face_index(std::string_view name) {
     if (name == "right") {
         return 0;
