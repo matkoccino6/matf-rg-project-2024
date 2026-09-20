@@ -1,9 +1,7 @@
-// clang-format off
-#include <glad/glad.h>
-// clang-format on
 #include <engine/graphics/Framebuffer.hpp>
 #include <engine/graphics/OpenGL.hpp>
 #include <engine/util/Errors.hpp>
+#include <glad/glad.h>
 #include <utility>
 
 namespace engine::graphics {
@@ -25,6 +23,23 @@ ColorFormatInfo color_format_info(FramebufferFormat format) {
         default:
             RG_SHOULD_NOT_REACH_HERE("Invalid color attachment format");
     }
+}
+
+GLint texture_filter_to_opengl(TextureFilter filter) {
+    switch (filter) {
+        case TextureFilter::Nearest: return GL_NEAREST;
+        case TextureFilter::Linear: return GL_LINEAR;
+    }
+    RG_SHOULD_NOT_REACH_HERE("Unhandled texture filter");
+}
+
+GLint texture_wrap_to_opengl(TextureWrap wrap) {
+    switch (wrap) {
+        case TextureWrap::ClampToEdge: return GL_CLAMP_TO_EDGE;
+        case TextureWrap::ClampToBorder: return GL_CLAMP_TO_BORDER;
+        case TextureWrap::Repeat: return GL_REPEAT;
+    }
+    RG_SHOULD_NOT_REACH_HERE("Unhandled texture wrap");
 }
 }// namespace
 
@@ -86,6 +101,16 @@ void Framebuffer::validate_description() const {
         RG_GUARANTEE(format == FramebufferFormat::Depth24Stencil8 || format == FramebufferFormat::Depth32F,
                      "Invalid depth attachment format");
     }
+
+    if (m_description.depth_cubemap) {
+        RG_GUARANTEE(m_description.depth_format == FramebufferFormat::Depth32F,
+                     "A depth cubemap attachment requires the FramebufferFormat::Depth32F format");
+        RG_GUARANTEE(m_description.width == m_description.height,
+                     "A depth cubemap attachment requires square faces, got {}x{}",
+                     m_description.width, m_description.height);
+        RG_GUARANTEE(m_description.depth_wrap != TextureWrap::ClampToBorder,
+                     "A depth cubemap attachment can't be sampled with TextureWrap::ClampToBorder");
+    }
 }
 
 void Framebuffer::allocate_attachments() {
@@ -124,14 +149,30 @@ void Framebuffer::allocate_attachments() {
         CHECKED_GL_CALL(glFramebufferRenderbuffer, GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
                         m_depth_stencil_rbo);
     } else if (m_description.depth_format == FramebufferFormat::Depth32F) {
-        CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, m_depth_texture);
-        CHECKED_GL_CALL(glTexImage2D, GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, m_description.width,
-                        m_description.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-        CHECKED_GL_CALL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        CHECKED_GL_CALL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        CHECKED_GL_CALL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        CHECKED_GL_CALL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        CHECKED_GL_CALL(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_depth_texture, 0);
+        const auto target = m_description.depth_cubemap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D;
+        CHECKED_GL_CALL(glBindTexture, target, m_depth_texture);
+        if (m_description.depth_cubemap) {
+            for (int face = 0; face < 6; ++face) {
+                CHECKED_GL_CALL(glTexImage2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT32F,
+                                m_description.width, m_description.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            }
+            CHECKED_GL_CALL(glTexParameteri, target, GL_TEXTURE_WRAP_R,
+                            texture_wrap_to_opengl(m_description.depth_wrap));
+            CHECKED_GL_CALL(glFramebufferTexture, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_depth_texture, 0);
+        } else {
+            CHECKED_GL_CALL(glTexImage2D, target, 0, GL_DEPTH_COMPONENT32F, m_description.width,
+                            m_description.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            CHECKED_GL_CALL(glTexParameteri, target, GL_TEXTURE_WRAP_S,
+                            texture_wrap_to_opengl(m_description.depth_wrap));
+            CHECKED_GL_CALL(glTexParameteri, target, GL_TEXTURE_WRAP_T,
+                            texture_wrap_to_opengl(m_description.depth_wrap));
+            CHECKED_GL_CALL(glTexParameterfv, target, GL_TEXTURE_BORDER_COLOR,
+                            m_description.depth_border_color.data());
+            CHECKED_GL_CALL(glFramebufferTexture2D, GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, target, m_depth_texture, 0);
+        }
+        const auto filter = texture_filter_to_opengl(m_description.depth_filter);
+        CHECKED_GL_CALL(glTexParameteri, target, GL_TEXTURE_MIN_FILTER, filter);
+        CHECKED_GL_CALL(glTexParameteri, target, GL_TEXTURE_MAG_FILTER, filter);
     }
 
     const auto status = CHECKED_GL_CALL(glCheckFramebufferStatus, GL_FRAMEBUFFER);
@@ -139,6 +180,7 @@ void Framebuffer::allocate_attachments() {
 
     CHECKED_GL_CALL(glBindRenderbuffer, GL_RENDERBUFFER, 0);
     CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_CUBE_MAP, 0);
 }
 
 void Framebuffer::bind() const {
@@ -165,5 +207,10 @@ uint32_t Framebuffer::color_texture(std::size_t index) const {
 uint32_t Framebuffer::depth_texture() const {
     RG_GUARANTEE(m_depth_texture != 0, "Framebuffer does not have a depth texture");
     return m_depth_texture;
+}
+
+uint32_t Framebuffer::depth_texture_target() const {
+    RG_GUARANTEE(m_depth_texture != 0, "Framebuffer does not have a depth texture");
+    return m_description.depth_cubemap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D;
 }
 }// namespace engine::graphics

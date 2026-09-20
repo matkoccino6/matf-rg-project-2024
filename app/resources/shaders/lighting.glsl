@@ -14,6 +14,7 @@ out vec3 TangentDLightDir;
 out vec3 TangentLightPos[NUM_PLIGHTS];
 out vec3 TangentViewPos;
 out vec3 TangentFragPos;
+out mat3 vTBN;
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -24,17 +25,14 @@ uniform vec3 uViewPos;
 void main() {
     FragPos = vec3(uModel * vec4(aPos, 1.0));
     TexCoords = aTexCoords;
-    //translacija Normali u world space normal matrix
     Normal = mat3(transpose(inverse(uModel))) * aNormal;
 
     vec3 T = normalize(mat3(uModel) * aTangent);
     vec3 N = normalize(mat3(uModel) * aNormal);
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
-    //transpose function instead of the inverse function here.
-    //A great property of orthogonal matrices (each axis is a perpendicular unit vector) is that the transpose of an orthogonal matrix equals its inverse.
-    //This is a great property as inverse is expensive and a transpose isn't.
     mat3 TBN = transpose(mat3(T, B, N));
+    vTBN = TBN;
     TangentDLightDir = TBN * uDLightDir;
     for (int i = 0; i < NUM_PLIGHTS; i++) {
         TangentLightPos[i] = TBN * uLightPos[i];
@@ -56,6 +54,7 @@ in vec3 TangentDLightDir;
 in vec3 TangentLightPos[NUM_PLIGHTS];
 in vec3 TangentViewPos;
 in vec3 TangentFragPos;
+in mat3 vTBN;
 
 uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_normal1;
@@ -97,9 +96,29 @@ struct PointLight {
 };
 uniform DirLight uDirLight;
 uniform PointLight uPointLights[NUM_PLIGHTS];
+uniform mat4 uLightSpaceMatrix;
+uniform sampler2D uShadowMap;
+uniform bool uUseShadowMap;
+uniform bool uUsePointShadowMap;
+uniform vec3 uDirectionalShadowLightDir;
+uniform vec3 uPointShadowLightPos1;
+uniform vec3 uPointShadowLightPos2;
+uniform vec3 uViewPos;
+uniform samplerCube uPointShadowMaps[NUM_PLIGHTS];
+uniform float uPointShadowFarPlane;
 
 const float PI = 3.14159265359;
 uniform float uAmbientStrength = 0.1f;
+
+vec3 gridSamplingDisk[20] = vec3[]
+(
+vec3(1, 1, 1), vec3(1, -1, 1), vec3(-1, -1, 1), vec3(-1, 1, 1),
+vec3(1, 1, -1), vec3(1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+vec3(1, 1, 0), vec3(1, -1, 0), vec3(-1, -1, 0), vec3(-1, 1, 0),
+vec3(1, 0, 1), vec3(-1, 0, 1), vec3(1, 0, -1), vec3(-1, 0, -1),
+vec3(0, 1, 1), vec3(0, -1, 1), vec3(0, -1, -1), vec3(0, 1, -1)
+);
+
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
@@ -134,6 +153,47 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+float DirectionalShadow(vec3 fragPos, vec3 worldNormal) {
+    vec4 lightSpacePosition = uLightSpaceMatrix * vec4(fragPos, 1.0);
+    vec3 projected = lightSpacePosition.xyz / lightSpacePosition.w;
+    projected = projected * 0.5 + 0.5;
+    if (projected.z > 1.0 || projected.x < 0.0 || projected.x > 1.0 ||
+    projected.y < 0.0 || projected.y > 1.0) {
+        return 0.0;
+    }
+    float currentDepth = projected.z;
+    float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(-uDirectionalShadowLightDir))), 0.0005);
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0) / textureSize(uShadowMap, 0);
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            float closestDepth = texture(uShadowMap, projected.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+        }
+    }
+    return shadow / 9.0;
+}
+float PointShadow(vec3 fragPos, vec3 lightPos, int k, vec3 worldNormal) {
+    vec3 lightToFragment = fragPos - lightPos;
+    float currentDepth = length(lightToFragment);
+    float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(lightToFragment))), 0.0005);
+    float shadow = 0.0;
+    float viewDistance = length(uViewPos - fragPos);
+    float diskRadius = (1.0 + (viewDistance / uPointShadowFarPlane)) / 25.0;
+    int samples = 20;
+    for (int i = 0; i < samples; ++i) {
+        float closestDepth;
+        if (k == 0) {
+            closestDepth = texture(uPointShadowMaps[0], lightToFragment + gridSamplingDisk[i] * diskRadius).r;
+        } else if (k == 1) {
+            closestDepth = texture(uPointShadowMaps[1], lightToFragment + gridSamplingDisk[i] * diskRadius).r;
+        }
+        closestDepth *= uPointShadowFarPlane;
+        shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    }
+    return shadow / float(samples);
 }
 vec3 CalcPointLight(PointLight light, vec3 tangentLightPos, vec3 fragPosTangent, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
     vec3 lightDir = normalize(tangentLightPos - fragPosTangent);
@@ -180,7 +240,6 @@ vec3 CalcDirLight(DirLight light, vec3 tanDLightDir, vec3 normal, vec3 viewDir, 
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 void main() {
-    //Albedos are done in sRGB color space
     vec4 baseColor = texture(texture_diffuse1, TexCoords) * uBaseColor;
     if (has_texture_opacity1) {
         baseColor.a *= texture(texture_opacity1, TexCoords).a;
@@ -194,19 +253,21 @@ void main() {
     vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(vec3(0.0, 0.0, 1.0));
     vec3 normalDx = dFdx(normal);
     vec3 normalDy = dFdy(normal);
+
     float metallic = uMetallicFactor;
     metallic = has_texture_metallic_roughness1 ? texture(texture_metallic_roughness1, TexCoords).b * metallic : metallic;
     metallic = has_texture_metallic1 ? texture(texture_metallic1, TexCoords).r * uMetallicFactor : metallic;
+
     float roughness = uRoughnessFactor;
     roughness = has_texture_metallic_roughness1 ? texture(texture_metallic_roughness1, TexCoords).g * roughness : roughness;
     roughness = has_texture_roughness1 ? texture(texture_roughness1, TexCoords).r * uRoughnessFactor : roughness;
-    //Attempt to reduce specular aliasing, increases roughness where the normal changes rapidly
     float normalVariance = 0.5 * (dot(normalDx, normalDx) + dot(normalDy, normalDy));
     roughness = clamp(sqrt(roughness * roughness + normalVariance), rFactor, 1.0);
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
     float specularLevel = has_texture_specular_level1 ? texture(texture_specular_level1, TexCoords).r : 1.0;
     F0 *= specularLevel;
+
     vec3 Lo = vec3(0.0);
     float occlusion = has_texture_occlusion1 ? texture(texture_occlusion1, TexCoords).r : 1.0;
     vec3 ambient = uAmbientStrength * albedo * occlusion;
@@ -214,9 +275,18 @@ void main() {
     ? texture(texture_scattering1, TexCoords).rgb * albedo * uAmbientStrength * 0.25
     : vec3(0.0);
     vec3 viewDir = normalize(TangentViewPos - TangentFragPos);
-    Lo += CalcDirLight(uDirLight, TangentDLightDir, normal, viewDir, albedo, metallic, roughness, F0);
+
+    vec3 worldNormal = normalize(transpose(vTBN) * normal);
+    float directionalShadow = uUseShadowMap ? DirectionalShadow(FragPos, worldNormal) : 0.0;
+    float pointShadow0 = uUsePointShadowMap ? PointShadow(FragPos, uPointShadowLightPos1, 0, worldNormal) : 0.0;
+    float pointShadow1 = uUsePointShadowMap ? PointShadow(FragPos, uPointShadowLightPos2, 1, worldNormal) : 0.0;
+
+    Lo += CalcDirLight(uDirLight, TangentDLightDir, normal, viewDir, albedo, metallic, roughness, F0)
+    * (1.0 - directionalShadow);
     for (int i = 0; i < NUM_PLIGHTS; i++) {
-        Lo += CalcPointLight(uPointLights[i], TangentLightPos[i], TangentFragPos, normal, viewDir, albedo, metallic, roughness, F0);
+        float visibility = i == 0 ? 1.0 - pointShadow0 : 1.0 - pointShadow1;
+        Lo += CalcPointLight(uPointLights[i], TangentLightPos[i], TangentFragPos, normal, viewDir, albedo,
+                             metallic, roughness, F0) * visibility;
     }
     vec3 emission = vec3(0.0);
     emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);

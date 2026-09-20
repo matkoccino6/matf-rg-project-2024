@@ -1,6 +1,3 @@
-//
-// Created by mateja on 17. 8. 2026..
-//
 #include <SettingsController.hpp>
 #include <spdlog/spdlog.h>
 
@@ -12,6 +9,7 @@ void SettingsController::initialize() {
 void SettingsController::reset() {
     m_ambient_strength = 0.1f;
     m_shininess = 32.0f;
+    m_far = 200.0f;
     u_plight_pos1 = glm::vec3(10.9f, 17.4f, 52.9f);
     u_plight_pos2 = glm::vec3(39.9f, 17.4f, 52.9f);
     u_dlight_dir = glm::vec3(-10.0f);

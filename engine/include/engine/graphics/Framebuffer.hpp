@@ -1,6 +1,7 @@
 #ifndef MATF_RG_PROJECT_FRAMEBUFFER_HPP
 #define MATF_RG_PROJECT_FRAMEBUFFER_HPP
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -15,11 +16,26 @@ enum class FramebufferFormat {
     Depth32F
 };
 
+enum class TextureFilter {
+    Nearest,
+    Linear
+};
+
+enum class TextureWrap {
+    ClampToEdge,
+    ClampToBorder,
+    Repeat
+};
+
 struct FramebufferDescription {
     int width{};
     int height{};
     std::vector<FramebufferFormat> color_formats{FramebufferFormat::RGBA8};
     std::optional<FramebufferFormat> depth_format{FramebufferFormat::Depth24Stencil8};
+    bool depth_cubemap{false};
+    TextureFilter depth_filter{TextureFilter::Nearest};
+    TextureWrap depth_wrap{TextureWrap::ClampToEdge};
+    std::array<float, 4> depth_border_color{1.0f, 1.0f, 1.0f, 1.0f};
 };
 
 class Framebuffer {
@@ -39,6 +55,12 @@ public:
 
     uint32_t color_texture(std::size_t index = 0) const;
     uint32_t depth_texture() const;
+
+    uint32_t depth_texture_target() const;
+
+    bool depth_is_cubemap() const {
+        return m_description.depth_cubemap;
+    }
 
     int width() const {
         return m_description.width;
@@ -60,4 +82,4 @@ private:
 };
 }// namespace engine::graphics
 
-#endif//MATF_RG_PROJECT_FRAMEBUFFER_HPP
+#endif
