@@ -11,20 +11,20 @@
 namespace engine::black_lodge::app {
 void MainController::initialize() {
     spdlog::info("MainController::initialize");
-    engine::graphics::OpenGL::enable_depth_testing();
+    graphics::OpenGL::enable_depth_testing();
     auto observer = std::make_unique<MainPlatformEventObserver>();
-    engine::core::Controller::get<engine::platform::PlatformController>()->register_platform_event_observer(
+    get<platform::PlatformController>()->register_platform_event_observer(
             std::move(observer));
-    auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
-    auto settings = Controller::get<SettingsController>();
-    graphics->perspective_params().Far = settings->m_far;
-    auto camera = get<engine::graphics::GraphicsController>()->camera();
-    camera->Position = settings->m_camera_position;
+    const auto graphics = get<graphics::GraphicsController>();
+    const auto settings = get<SettingsController>();
+    graphics->perspective_params().Far = settings->far;
+    const auto camera = get<graphics::GraphicsController>()->camera();
+    camera->Position = settings->camera_position;
 }
 
 bool MainController::loop() {
-    const auto platform = engine::core::Controller::get<engine::platform::PlatformController>();
-    if (platform->key(engine::platform::KeyId::KEY_ESCAPE).state() == engine::platform::Key::State::JustPressed) {
+    const auto platform = get<platform::PlatformController>();
+    if (platform->key(platform::KeyId::KEY_ESCAPE).state() == platform::Key::State::JustPressed) {
         return false;
     }
     return true;
@@ -32,8 +32,8 @@ bool MainController::loop() {
 
 void MainController::poll_events() {
     spdlog::debug("MainController::poll_events");
-    const auto platform = engine::core::Controller::get<engine::platform::PlatformController>();
-    if (platform->key(engine::platform::KEY_F1).state() == engine::platform::Key::State::JustPressed) {
+    const auto platform = get<platform::PlatformController>();
+    if (platform->key(platform::KEY_F1).state() == platform::Key::State::JustPressed) {
         m_cursor_enabled = !m_cursor_enabled;
         platform->set_enable_cursor(m_cursor_enabled);
     }
@@ -42,8 +42,8 @@ void MainController::poll_events() {
 void MainController::update() {
     spdlog::debug("MainController::update");
     update_camera();
-    auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
-    graphics->perspective_params().Far = Controller::get<SettingsController>()->m_far;
+    const auto graphics = get<graphics::GraphicsController>();
+    graphics->perspective_params().Far = get<SettingsController>()->far;
 }
 
 void MainController::begin_draw() {
@@ -53,13 +53,13 @@ void MainController::begin_draw() {
 
 void MainController::draw() {
     spdlog::debug("MainController::draw");
-    auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
-    auto shader = engine::core::Controller::get<engine::resources::ResourcesController>()->shader("lighting");
-    auto floor = engine::core::Controller::get<engine::resources::ResourcesController>()->model("black_lodge");
-    auto settings = Controller::get<SettingsController>();
+    const auto graphics = get<graphics::GraphicsController>();
+    const auto shader = get<resources::ResourcesController>()->shader("lighting");
+    const auto lodge = get<resources::ResourcesController>()->model("black_lodge");
+    const auto settings = get<SettingsController>();
     const auto model = glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
 
-    engine::graphics::OpenGL::set_viewport(
+    graphics::OpenGL::set_viewport(
             graphics->perspective_params().Width, graphics->perspective_params().Height);
     shader->use();
     shader->set_mat4("uProjection", graphics->projection_matrix());
@@ -99,7 +99,7 @@ void MainController::draw() {
 
     shader->set_float("rFactor", settings->u_r_factor);
     shader->set_float("uEmissiveFactor", settings->u_emissive_factor);
-    const auto shadows = Controller::get<ShadowController>();
+    const auto shadows = get<ShadowController>();
     shader->set_mat4("uLightSpaceMatrix", shadows->directional_shadow_map().light_view_projection());
     shader->set_vec3("uDirectionalShadowLightDir", settings->u_dlight_dir);
     shader->set_int("uShadowMap", ShadowController::directional_texture_unit());
@@ -110,11 +110,17 @@ void MainController::draw() {
     shader->set_vec3("uPointShadowLightPos2", settings->u_plight_pos2);
     shader->set_float("uPointShadowFarPlane", shadows->point_shadow_far_plane());
     shader->set_bool("uUsePointShadowMap", true);
+    shader->set_mat4("uSpotLightSpaceMatrix", shadows->spot_shadow_map().light_view_projection());
+    shader->set_int("uSpotShadowMap", ShadowController::spot_texture_unit());
+    shader->set_vec3("uSpotShadowLightPos", settings->u_slight_pos);
+    shader->set_float("uSpotShadowFarPlane", shadows->spot_shadow_far_plane());
+    shader->set_bool("uUseSpotShadowMap", true);
     shadows->directional_shadow_map().bind_texture(ShadowController::directional_texture_unit());
     shadows->point_shadow_map(0).bind_texture(ShadowController::point_texture_unit(0));
     shadows->point_shadow_map(1).bind_texture(ShadowController::point_texture_unit(1));
+    shadows->spot_shadow_map().bind_texture(ShadowController::spot_texture_unit());
 
-    floor->draw(shader);
+    lodge->draw(shader);
 }
 
 void MainController::end_draw() {
@@ -127,9 +133,9 @@ void MainController::update_camera() {
     if (gui->is_enabled()) {
         return;
     }
-    auto platform = engine::core::Controller::get<engine::platform::PlatformController>();
-    auto camera = engine::core::Controller::get<engine::graphics::GraphicsController>()->camera();
-    float dt = platform->dt();
+    const auto platform = engine::core::Controller::get<engine::platform::PlatformController>();
+    const auto camera = engine::core::Controller::get<engine::graphics::GraphicsController>()->camera();
+    const float dt = platform->dt();
     if (platform->key(platform::KEY_W).state() == platform::Key::State::Pressed) {
         camera->move_camera(graphics::Camera::Movement::FORWARD, dt);
     }
@@ -160,8 +166,8 @@ void MainPlatformEventObserver::on_scroll(engine::platform::MousePosition positi
         return;
     }
 
-    auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
-    auto camera = graphics->camera();
+    const auto graphics = engine::core::Controller::get<engine::graphics::GraphicsController>();
+    const auto camera = graphics->camera();
     camera->zoom(position.scroll);
     graphics->perspective_params().FOV = glm::radians(camera->Zoom);
 }

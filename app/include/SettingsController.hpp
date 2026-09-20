@@ -5,11 +5,11 @@
 #include <glm/vec3.hpp>
 
 namespace engine::black_lodge::app {
-class SettingsController final : public engine::core::Controller {
+class SettingsController final : public core::Controller {
 public:
     float u_ambient_strength = 0.05f;
-    float m_far = 200.0f;
-    glm::vec3 m_camera_position = glm::vec3(0.0f, 10.0f, 0.0f);
+    float far = 200.0f;
+    glm::vec3 camera_position = glm::vec3(0.0f, 10.0f, 0.0f);
 
     glm::vec3 u_plight_pos1 = glm::vec3(10.9f, 17.4f, 52.9f);
     glm::vec3 u_plight_pos2 = glm::vec3(39.9f, 17.4f, 52.9f);

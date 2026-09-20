@@ -8,7 +8,7 @@ void SettingsController::initialize() {
 
 void SettingsController::reset() {
     u_ambient_strength = 0.1f;
-    m_far = 200.0f;
+    far = 200.0f;
     u_plight_pos1 = glm::vec3(10.9f, 17.4f, 52.9f);
     u_plight_pos2 = glm::vec3(39.9f, 17.4f, 52.9f);
     u_dlight_dir = glm::vec3(-10.0f);
@@ -18,8 +18,8 @@ void SettingsController::reset() {
     u_dlight_color = glm::vec3(1.0f);
     u_slight_pos = glm::vec3(0.0f, 5.0f, 0.0f);
     u_slight_dir = glm::vec3(0.0f, -1.0f, 0.0f);
-    u_slight_cut_off = glm::cos(glm::radians(12.5f));
-    u_slight_outer_cut_off = glm::cos(glm::radians(17.5f));
+    u_slight_cut_off = 12.5f;
+    u_slight_outer_cut_off = 17.5f;
     u_slight_color = glm::vec3(1.0f);
 
     u_plight_intensity = 1.0f;

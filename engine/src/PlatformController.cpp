@@ -57,7 +57,9 @@ void PlatformController::initialize() {
     glfwSetFramebufferSizeCallback(m_window.handle_(), glfw_framebuffer_size_callback);
     glfwSetWindowCloseCallback(m_window.handle_(), glfw_window_close_callback);
 
-    int major, minor, revision;
+    int major;
+    int minor;
+    int revision;
     glfwGetVersion(&major, &minor, &revision);
     spdlog::info("Platform[GLFW {}.{}.{}]", major, minor, revision);
     initialize_key_maps();

@@ -22,8 +22,16 @@ public:
         return *m_point_shadow_maps.at(index);
     }
 
+    const engine::graphics::ShadowMap &spot_shadow_map() const {
+        return *m_spot_shadow_map;
+    }
+
     float point_shadow_far_plane() const {
         return m_point_shadow_far_plane;
+    }
+
+    float spot_shadow_far_plane() const {
+        return m_spot_shadow_far_plane;
     }
 
     static constexpr unsigned directional_texture_unit() {
@@ -34,17 +42,28 @@ public:
         return 33 + static_cast<unsigned>(index);
     }
 
+    static constexpr unsigned spot_texture_unit() {
+        return 35;
+    }
+
 private:
     void initialize() override;
+
     void begin_draw() override;
+
     void terminate() override;
 
-    void render_directional_shadow();
-    void render_point_shadow(std::size_t index);
+    void render_directional_shadow() const;
+
+    void render_point_shadow(std::size_t index) const;
+
+    void render_spot_shadow() const;
 
     std::unique_ptr<engine::graphics::ShadowMap> m_directional_shadow_map;
     std::array<std::unique_ptr<engine::graphics::ShadowMap>, 2> m_point_shadow_maps;
+    std::unique_ptr<engine::graphics::ShadowMap> m_spot_shadow_map;
     float m_point_shadow_far_plane{};
+    float m_spot_shadow_far_plane{};
 };
 }// namespace engine::black_lodge::app
 

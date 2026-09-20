@@ -15,7 +15,9 @@ Mesh::Mesh(const std::vector<Vertex> &vertices, const std::vector<uint32_t> &ind
     , m_material(material) {
     // NOLINTBEGIN
     static_assert(std::is_trivial_v<Vertex>);
-    uint32_t vao, vbo, ebo;
+    uint32_t vao;
+    uint32_t vbo;
+    uint32_t ebo;
     CHECKED_GL_CALL(glGenVertexArrays, 1, &vao);
     CHECKED_GL_CALL(glGenBuffers, 1, &vbo);
     CHECKED_GL_CALL(glGenBuffers, 1, &ebo);

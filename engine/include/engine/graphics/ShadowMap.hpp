@@ -12,6 +12,7 @@ class Framebuffer;
 
 enum class ShadowMapType {
     Basic,
+    Spot,
     Point
 };
 
@@ -25,6 +26,7 @@ struct ShadowMapDescription {
     float top{20.0f};
     float near_plane{0.1f};
     float far_plane{100.0f};
+    float field_of_view{90.0f};
 
     glm::vec3 light_position{0.0f, 10.0f, 0.0f};
     glm::vec3 target{0.0f};
@@ -48,6 +50,7 @@ public:
                    const glm::vec3 &up = {0.0f, 1.0f, 0.0f});
     void set_clip_planes(float near_plane, float far_plane);
     void set_orthographic_bounds(float left, float right, float bottom, float top);
+    void set_field_of_view(float field_of_view);
 
     ShadowMapType type() const { return m_description.type; }
     int resolution() const { return m_description.resolution; }
