@@ -47,7 +47,7 @@ void GUIController::draw() {
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Global")) {
-            ImGui::SliderFloat("Ambient Strength", &settings->m_ambient_strength, 0.0f, 1.0f);
+            ImGui::SliderFloat("Ambient Strength", &settings->u_ambient_strength, 0.0f, 1.0f);
             ImGui::SliderFloat("Far", &settings->m_far, 0.2f, 1000.0f);
             ImGui::SliderFloat("Roughness Factor", &settings->u_r_factor, 0.0f, 1.0f);
             ImGui::SliderFloat("Emissive Factor", &settings->u_emissive_factor, 0.0f, 1000.0f);
@@ -58,6 +58,21 @@ void GUIController::draw() {
             ImGui::SliderInt("Bloom mip levels", &settings->u_bloom_mip_levels, 1, 13);
             ImGui::SliderFloat("Bloom filter radius", &settings->u_bloom_filter_radius, 0.0f, 1.0f);
             ImGui::SliderFloat("Bloom intensity", &settings->u_bloom_intensity, 0.0f, 1.0f);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Spot Light")) {
+            if (ImGui::CollapsingHeader("Spot Light")) {
+                ImGui::SliderFloat3("Position", glm::value_ptr(settings->u_slight_pos), -100.0f, 100.0f);
+                ImGui::SliderFloat3("Direction", glm::value_ptr(settings->u_slight_dir), -100.0f, 100.0f);
+                ImGui::ColorEdit3("Color", glm::value_ptr(settings->u_slight_color));
+                ImGui::SliderFloat("Intensity", &settings->u_slight_intensity, 0.0f, 1000.0f);
+                ImGui::SliderFloat("Inner Angle", &settings->u_slight_cut_off, 1.0f, 45.0f);
+                ImGui::SliderFloat("Outer Angle", &settings->u_slight_outer_cut_off, 1.0f, 75.0f);
+
+                if (settings->u_slight_outer_cut_off <= settings->u_slight_cut_off) {
+                    settings->u_slight_outer_cut_off = settings->u_slight_cut_off + 1.0f;
+                }
+            }
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

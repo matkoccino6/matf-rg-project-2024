@@ -1,4 +1,5 @@
 #include <BlackLodgeApp.hpp>
+#include <EventController.hpp>
 #include <GUIController.hpp>
 #include <MainController.hpp>
 #include <PostProcessingController.hpp>
@@ -15,12 +16,14 @@ void BlackLodgeApp::app_setup() {
     auto gui_controller = register_controller<GUIController>();
     auto settings_controller = register_controller<SettingsController>();
     auto shadow_controller = register_controller<ShadowController>();
+    auto event_controller = register_controller<EventController>();
     main_controller->after(engine::core::Controller::get<engine::core::EngineControllersEnd>());
     shadow_controller->after(engine::core::Controller::get<engine::core::EngineControllersEnd>());
     shadow_controller->before(main_controller);
     post_processing_controller->after(main_controller);
     gui_controller->after(post_processing_controller);
     settings_controller->after(gui_controller);
+    event_controller->after(settings_controller);
 }
 }// namespace engine::black_lodge::app
 

@@ -14,14 +14,43 @@ out vec3 TangentDLightDir;
 out vec3 TangentLightPos[NUM_PLIGHTS];
 out vec3 TangentViewPos;
 out vec3 TangentFragPos;
+out vec3 TangentSpotLightPos;
+out vec3 TangentSpotLightDir;
 out mat3 vTBN;
 
 uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
-uniform vec3 uDLightDir;
-uniform vec3 uLightPos[NUM_PLIGHTS];
 uniform vec3 uViewPos;
+
+struct DirLight {
+    vec3 color;
+    vec3 direction;
+    float intensity;
+};
+struct PointLight {
+    vec3 color;
+    vec3 position;
+    float intensity;
+    float constant;
+    float linear;
+    float quadratic;
+};
+struct SpotLight {
+    vec3 color;
+    vec3 position;
+    vec3 direction;
+    float cutOff;
+    float outerCutOff;
+    float intensity;
+    float constant;
+    float linear;
+    float quadratic;
+};
+uniform SpotLight uSpotLight;
+uniform DirLight uDirLight;
+uniform PointLight uPointLights[NUM_PLIGHTS];
+
 void main() {
     FragPos = vec3(uModel * vec4(aPos, 1.0));
     TexCoords = aTexCoords;
@@ -33,10 +62,12 @@ void main() {
     vec3 B = cross(N, T);
     mat3 TBN = transpose(mat3(T, B, N));
     vTBN = TBN;
-    TangentDLightDir = TBN * uDLightDir;
+    TangentDLightDir = TBN * uDirLight.direction;
     for (int i = 0; i < NUM_PLIGHTS; i++) {
-        TangentLightPos[i] = TBN * uLightPos[i];
+        TangentLightPos[i] = TBN * uPointLights[i].position;
     }
+    TangentSpotLightPos = TBN * uSpotLight.position;
+    TangentSpotLightDir = TBN * uSpotLight.direction;
     TangentViewPos = TBN * uViewPos;
     TangentFragPos = TBN * FragPos;
     gl_Position = uProjection * uView * vec4(FragPos, 1.0);
@@ -54,6 +85,8 @@ in vec3 TangentDLightDir;
 in vec3 TangentLightPos[NUM_PLIGHTS];
 in vec3 TangentViewPos;
 in vec3 TangentFragPos;
+in vec3 TangentSpotLightPos;
+in vec3 TangentSpotLightDir;
 in mat3 vTBN;
 
 uniform sampler2D texture_diffuse1;
@@ -85,15 +118,29 @@ uniform float uAlphaCutoff;
 uniform float rFactor = 0.15;
 struct DirLight {
     vec3 color;
+    vec3 direction;
     float intensity;
 };
 struct PointLight {
     vec3 color;
+    vec3 position;
     float intensity;
     float constant;
     float linear;
     float quadratic;
 };
+struct SpotLight {
+    vec3 color;
+    vec3 position;
+    vec3 direction;
+    float cutOff;
+    float outerCutOff;
+    float intensity;
+    float constant;
+    float linear;
+    float quadratic;
+};
+uniform SpotLight uSpotLight;
 uniform DirLight uDirLight;
 uniform PointLight uPointLights[NUM_PLIGHTS];
 uniform mat4 uLightSpaceMatrix;
@@ -239,6 +286,34 @@ vec3 CalcDirLight(DirLight light, vec3 tanDLightDir, vec3 normal, vec3 viewDir, 
 
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
+vec3 CalcSpotLight(SpotLight light, vec3 tangentLightPos, vec3 tangentLightDir, vec3 fragPosTangent, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
+    vec3 lightDir = normalize(tangentLightPos - fragPosTangent);
+    float theta = dot(lightDir, normalize(-tangentLightDir));
+    float epsilon = light.cutOff - light.outerCutOff;
+    float spotFactor = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+
+    vec3 halfVec = normalize(viewDir + lightDir);
+
+    float distance = length(tangentLightPos - fragPosTangent);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+
+    vec3 radiance = light.color * light.intensity * attenuation * spotFactor;
+
+    float NDF = DistributionGGX(normal, halfVec, roughness);
+    float G = GeometrySmith(normal, viewDir, lightDir, roughness);
+    vec3 F = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+    float NdotL = max(dot(normal, lightDir), 0.0);
+
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
 void main() {
     vec4 baseColor = texture(texture_diffuse1, TexCoords) * uBaseColor;
     if (has_texture_opacity1) {
@@ -283,6 +358,7 @@ void main() {
 
     Lo += CalcDirLight(uDirLight, TangentDLightDir, normal, viewDir, albedo, metallic, roughness, F0)
     * (1.0 - directionalShadow);
+    Lo += CalcSpotLight(uSpotLight, TangentSpotLightPos, TangentSpotLightDir, TangentFragPos, normal, viewDir, albedo, metallic, roughness, F0);
     for (int i = 0; i < NUM_PLIGHTS; i++) {
         float visibility = i == 0 ? 1.0 - pointShadow0 : 1.0 - pointShadow1;
         Lo += CalcPointLight(uPointLights[i], TangentLightPos[i], TangentFragPos, normal, viewDir, albedo,

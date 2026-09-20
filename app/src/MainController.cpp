@@ -65,27 +65,37 @@ void MainController::draw() {
     shader->set_mat4("uProjection", graphics->projection_matrix());
     shader->set_mat4("uView", graphics->camera()->view_matrix());
     shader->set_mat4("uModel", model);
-    shader->set_vec3("uLightPos[0]", settings->u_plight_pos1);
-    shader->set_vec3("uLightPos[1]", settings->u_plight_pos2);
-    shader->set_vec3("uDLightDir", settings->u_dlight_dir);
 
     shader->set_vec3("uViewPos", graphics->camera()->Position);
-    shader->set_float("uAmbientStrength", settings->m_ambient_strength);
+    shader->set_float("uAmbientStrength", settings->u_ambient_strength);
 
     shader->set_vec3("uDirLight.color", settings->u_dlight_color);
+    shader->set_vec3("uDirLight.direction", settings->u_dlight_dir);
     shader->set_float("uDirLight.intensity", settings->u_dlight_intensity);
 
     shader->set_vec3("uPointLights[0].color", settings->u_plight_color1);
+    shader->set_vec3("uPointLights[0].position", settings->u_plight_pos1);
     shader->set_float("uPointLights[0].intensity", settings->u_plight_intensity);
     shader->set_float("uPointLights[0].constant", 1.0f);
     shader->set_float("uPointLights[0].linear", 0.07f);
     shader->set_float("uPointLights[0].quadratic", 0.017f);
 
     shader->set_vec3("uPointLights[1].color", settings->u_plight_color2);
+    shader->set_vec3("uPointLights[1].position", settings->u_plight_pos2);
     shader->set_float("uPointLights[1].intensity", settings->u_plight_intensity);
     shader->set_float("uPointLights[1].constant", 1.0f);
     shader->set_float("uPointLights[1].linear", 0.07f);
     shader->set_float("uPointLights[1].quadratic", 0.017f);
+
+    shader->set_vec3("uSpotLight.position", settings->u_slight_pos);
+    shader->set_vec3("uSpotLight.color", settings->u_slight_color);
+    shader->set_vec3("uSpotLight.direction", settings->u_slight_dir);
+    shader->set_float("uSpotLight.intensity", settings->u_slight_intensity);
+    shader->set_float("uSpotLight.constant", 1.0f);
+    shader->set_float("uSpotLight.linear", 0.027f);
+    shader->set_float("uSpotLight.quadratic", 0.0028f);
+    shader->set_float("uSpotLight.cutOff", glm::cos(glm::radians(settings->u_slight_cut_off)));
+    shader->set_float("uSpotLight.outerCutOff", glm::cos(glm::radians(settings->u_slight_outer_cut_off)));
 
     shader->set_float("rFactor", settings->u_r_factor);
     shader->set_float("uEmissiveFactor", settings->u_emissive_factor);
