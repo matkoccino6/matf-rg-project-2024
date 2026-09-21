@@ -126,6 +126,7 @@ void MainController::draw() {
     lodge->draw(shader);
     model = glm::translate(glm::mat4(1.0f), glm::vec3(-2.5, 0.0, -6.2));
     model = glm::scale(model, glm::vec3(settings->m_scale / 100.0f));
+    model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     shader->set_mat4("uModel", model);
     statue->draw(shader);
 }

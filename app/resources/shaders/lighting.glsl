@@ -99,6 +99,7 @@ uniform sampler2D texture_emissive1;
 uniform sampler2D texture_opacity1;
 uniform sampler2D texture_specular_level1;
 uniform sampler2D texture_scattering1;
+uniform bool has_texture_diffuse1;
 uniform bool has_texture_normal1;
 uniform bool has_texture_metallic_roughness1;
 uniform bool has_texture_metallic1;
@@ -211,21 +212,21 @@ float DirectionalShadow(vec3 fragPos, vec3 worldNormal) {
     vec4 lightSpacePosition = uLightSpaceMatrix * vec4(fragPos, 1.0);
     vec3 projected = lightSpacePosition.xyz / lightSpacePosition.w;
     projected = projected * 0.5 + 0.5;
-    if (projected.z > 1.0 || projected.x < 0.0 || projected.x > 1.0 ||
-    projected.y < 0.0 || projected.y > 1.0) {
+    if (projected.z < 0.0 || projected.z > 1.0 || projected.x < 0.0 || projected.x > 1.0 ||
+        projected.y < 0.0 || projected.y > 1.0) {
         return 0.0;
     }
     float currentDepth = projected.z;
     float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(-uDirectionalShadowLightDir))), 0.0005);
     float shadow = 0.0;
     vec2 texelSize = vec2(1.0) / textureSize(uShadowMap, 0);
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
+    for (int x = -2; x <= 2; ++x) {
+        for (int y = -2; y <= 2; ++y) {
             float closestDepth = texture(uShadowMap, projected.xy + vec2(x, y) * texelSize).r;
             shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
         }
     }
-    return shadow / 9.0;
+    return shadow / 25.0;
 }
 float PointShadow(vec3 fragPos, vec3 lightPos, int k, vec3 worldNormal) {
     vec3 lightToFragment = fragPos - lightPos;
@@ -233,7 +234,8 @@ float PointShadow(vec3 fragPos, vec3 lightPos, int k, vec3 worldNormal) {
     float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(lightToFragment))), 0.0005);
     float shadow = 0.0;
     float viewDistance = length(uViewPos - fragPos);
-    float diskRadius = (1.0 + (viewDistance / uPointShadowFarPlane)) / 25.0;
+    float texelSize = 1.0 / float(textureSize(uPointShadowMaps[0], 0).x);
+    float diskRadius = texelSize * (1.0 + (viewDistance / uPointShadowFarPlane)) * 4.0;
     int samples = 20;
     for (int i = 0; i < samples; ++i) {
         float closestDepth;
@@ -270,13 +272,13 @@ float SpotShadow(vec3 fragPos, vec3 lightPos, vec3 worldNormal) {
     float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(-lightToFragment))), 0.0005);
     vec2 texelSize = vec2(1.0) / textureSize(uSpotShadowMap, 0);
     float shadow = 0.0;
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
+    for (int x = -2; x <= 2; ++x) {
+        for (int y = -2; y <= 2; ++y) {
             float closestDepth = texture(uSpotShadowMap, projected.xy + vec2(x, y) * texelSize).r;
             shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
         }
     }
-    return shadow / 9.0;
+    return shadow / 25.0;
 }
 vec3 CalcPointLight(PointLight light, vec3 tangentLightPos, vec3 fragPosTangent, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
     vec3 lightDir = normalize(tangentLightPos - fragPosTangent);
@@ -351,7 +353,10 @@ vec3 CalcSpotLight(SpotLight light, vec3 tangentLightPos, vec3 tangentLightDir, 
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 void main() {
-    vec4 baseColor = texture(texture_diffuse1, TexCoords) * uBaseColor;
+    vec4 baseColor = uBaseColor;
+    if (has_texture_diffuse1) {
+        baseColor *= texture(texture_diffuse1, TexCoords);
+    }
     if (has_texture_opacity1) {
         baseColor.a *= texture(texture_opacity1, TexCoords).a;
     }
@@ -360,8 +365,10 @@ void main() {
         discard;
     }
     vec3 albedo = baseColor.rgb;
-    vec3 normalMap = texture(texture_normal1, TexCoords).rgb;
-    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(vec3(0.0, 0.0, 1.0));
+    vec3 normal = normalize(vec3(0.0, 0.0, 1.0));
+    if (has_texture_normal1) {
+        normal = normalize(texture(texture_normal1, TexCoords).rgb * 2.0 - 1.0);
+    }
     vec3 normalDx = dFdx(normal);
     vec3 normalDy = dFdy(normal);
 

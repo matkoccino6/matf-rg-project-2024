@@ -16,7 +16,7 @@ ShadowMap::ShadowMap(ShadowMapDescription description)
             .color_formats = {},
             .depth_format = FramebufferFormat::Depth32F,
             .depth_cubemap = m_description.type == ShadowMapType::Point,
-            .depth_filter = TextureFilter::Linear,
+            .depth_filter = TextureFilter::Nearest,
             .depth_wrap = m_description.type == ShadowMapType::Point
                                   ? TextureWrap::ClampToEdge
                                   : TextureWrap::ClampToBorder});

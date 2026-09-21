@@ -6,7 +6,7 @@
         "flip_uvs": true
       },
       "statue": {
-        "path": "venus-de-milo/source/retopo_2.obj",
+        "path": "venus-de-milo/scene.gltf",
         "flip_uvs": true
       }
     }

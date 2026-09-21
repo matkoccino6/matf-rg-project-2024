@@ -9,7 +9,6 @@
 #include <engine/util/Configuration.hpp>
 #include <engine/util/Errors.hpp>
 #include <spdlog/spdlog.h>
-#include <unordered_set>
 #include <utility>
 
 namespace engine::resources {
@@ -240,6 +239,8 @@ void AssimpSceneProcessor::process_mesh(aiMesh *mesh) {
     std::vector<Texture *> textures = process_materials(material);
     Material mesh_material;
     aiColor4D color;
+    aiString material_name;
+    material->Get(AI_MATKEY_NAME, material_name);
     if (material->Get(AI_MATKEY_BASE_COLOR, color) != AI_SUCCESS &&
         material->Get(AI_MATKEY_COLOR_DIFFUSE, color) != AI_SUCCESS) {
         color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f);
@@ -261,8 +262,6 @@ void AssimpSceneProcessor::process_mesh(aiMesh *mesh) {
         mesh_material.alpha_mode = AlphaMode::Blend;
     }
     material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, mesh_material.alpha_cutoff);
-    aiString material_name;
-    material->Get(AI_MATKEY_NAME, material_name);
     spdlog::info(
             "material(name={}, base_color=({}, {}, {}, {}), metallic={}, roughness={}, opacity={}, transparent={}, "
             "alpha_cutoff={}, textures={})",
