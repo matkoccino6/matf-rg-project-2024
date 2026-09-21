@@ -21,7 +21,7 @@ private:
 
     static constexpr float DELAY_A = 2.0f;
     static constexpr float DELAY_B = 3.0f;
-    static constexpr float EVENT_B_DURATION = 10.0f;
+    static constexpr float EVENT_B_DURATION = 15.0f;
 
     glm::vec3 m_original_dir_light_color{1.0f};
     float m_original_dir_light_intensity = 1.0f;
@@ -33,6 +33,8 @@ private:
     float m_original_ambient_strength = 0.1f;
     float m_original_emissive_factor = 1.0f;
     float m_flicker_timer = 0.0f;
+    float m_original_exposure = 0.0f;
+    float m_original_bloom_intensity = 0.04f;
 
     void initialize() override;
 
