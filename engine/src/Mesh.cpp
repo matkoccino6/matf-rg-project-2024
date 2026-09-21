@@ -52,6 +52,10 @@ Mesh::Mesh(const std::vector<Vertex> &vertices, const std::vector<uint32_t> &ind
 
 void Mesh::draw(const Shader *shader) {
     shader->set_vec4("uBaseColor", m_material.base_color);
+    shader->set_vec3("uMaterialEmissive", m_material.emissive_color);
+    shader->set_float("uMaterialEmissiveStrength", m_material.emissive_strength);
+    shader->set_bool("uMaterialEmissiveTopOnly", m_material.emissive_top_only);
+    shader->set_float("uMaterialEmissiveTopStart", m_material.emissive_top_start);
     shader->set_float("uMetallicFactor", m_material.metallic);
     shader->set_float("uRoughnessFactor", m_material.roughness);
     shader->set_float("uOpacity", m_material.opacity);

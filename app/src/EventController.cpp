@@ -70,6 +70,7 @@ void EventController::trigger_event_b() const {
     settings->u_ambient_strength = flash_on ? 0.0005f : 0.0f;
     settings->u_emissive_factor = flash_on ? 0.0f : 2500.0f;
     settings->u_exposure = flash_on ? 2.0f : 0.1f;
+    settings->u_lamp_emission_factor = flash_on ? 20.0f : 10.0f;
 }
 
 void EventController::reset_sequence() {
@@ -85,6 +86,7 @@ void EventController::reset_sequence() {
     settings->u_emissive_factor = m_original_emissive_factor;
     settings->u_exposure = m_original_exposure;
     settings->u_bloom_intensity = m_original_bloom_intensity;
+    settings->u_lamp_emission_factor = m_original_lamp_factor;
     m_flicker_timer = 0.0f;
     m_elapsed = 0.0f;
     m_phase = Phase::Idle;

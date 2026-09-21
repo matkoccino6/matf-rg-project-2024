@@ -35,6 +35,7 @@ private:
     float m_flicker_timer = 0.0f;
     float m_original_exposure = 0.0f;
     float m_original_bloom_intensity = 0.04f;
+    float m_original_lamp_factor = 3.0f;
 
     void initialize() override;
 

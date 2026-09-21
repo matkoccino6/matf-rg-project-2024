@@ -81,6 +81,9 @@ void MainController::draw() {
     shader->set_float("uPointLights[0].constant", 1.0f);
     shader->set_float("uPointLights[0].linear", 0.07f);
     shader->set_float("uPointLights[0].quadratic", 0.017f);
+    shader->set_vec3("uLampEmissionColor1", settings->u_plight_color1);
+    shader->set_vec3("uLampPosition1", settings->u_plight_pos1);
+    shader->set_float("uLampEmissionFactor", settings->u_lamp_emission_factor);
 
     shader->set_vec3("uPointLights[1].color", settings->u_plight_color2);
     shader->set_vec3("uPointLights[1].position", settings->u_plight_pos2);
@@ -88,6 +91,8 @@ void MainController::draw() {
     shader->set_float("uPointLights[1].constant", 1.0f);
     shader->set_float("uPointLights[1].linear", 0.07f);
     shader->set_float("uPointLights[1].quadratic", 0.017f);
+    shader->set_vec3("uLampEmissionColor2", settings->u_plight_color2);
+    shader->set_vec3("uLampPosition2", settings->u_plight_pos2);
 
     shader->set_vec3("uSpotLight.position", settings->u_slight_pos);
     shader->set_vec3("uSpotLight.color", settings->u_slight_color);

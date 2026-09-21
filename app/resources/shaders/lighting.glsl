@@ -17,6 +17,7 @@ out vec3 TangentFragPos;
 out vec3 TangentSpotLightPos;
 out vec3 TangentSpotLightDir;
 out mat3 vTBN;
+out float EmissiveHeight;
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -70,6 +71,7 @@ void main() {
     TangentSpotLightDir = TBN * uSpotLight.direction;
     TangentViewPos = TBN * uViewPos;
     TangentFragPos = TBN * FragPos;
+    EmissiveHeight = aPos.y;
     gl_Position = uProjection * uView * vec4(FragPos, 1.0);
 }
 
@@ -88,6 +90,7 @@ in vec3 TangentFragPos;
 in vec3 TangentSpotLightPos;
 in vec3 TangentSpotLightDir;
 in mat3 vTBN;
+in float EmissiveHeight;
 
 uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_normal1;
@@ -110,6 +113,15 @@ uniform bool has_texture_opacity1;
 uniform bool has_texture_specular_level1;
 uniform bool has_texture_scattering1;
 uniform vec4 uBaseColor;
+uniform vec3 uMaterialEmissive;
+uniform float uMaterialEmissiveStrength;
+uniform bool uMaterialEmissiveTopOnly;
+uniform float uMaterialEmissiveTopStart;
+uniform vec3 uLampEmissionColor1;
+uniform vec3 uLampEmissionColor2;
+uniform vec3 uLampPosition1;
+uniform vec3 uLampPosition2;
+uniform float uLampEmissionFactor;
 uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform float uOpacity;
@@ -411,7 +423,23 @@ void main() {
     }
     vec3 emission = vec3(0.0);
     emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);
-    emission *= uEmissiveFactor;
+    float emissiveMask = 1.0;
+    if (uMaterialEmissiveTopOnly) {
+        float topMask = step(uMaterialEmissiveTopStart, EmissiveHeight);
+        float inwardMask = smoothstep(0.0, 0.5, normalize(Normal).y);
+        emissiveMask = topMask * inwardMask;
+    }
+    if (uMaterialEmissiveTopOnly) {
+        float distance1 = max(distance(FragPos, uLampPosition1), 0.001);
+        float distance2 = max(distance(FragPos, uLampPosition2), 0.001);
+        float weight1 = 1.0 / distance1;
+        float weight2 = 1.0 / distance2;
+        emission = (uLampEmissionColor1 * weight1 + uLampEmissionColor2 * weight2)
+                   / (weight1 + weight2) * uLampEmissionFactor * emissiveMask;
+    } else {
+        emission += uMaterialEmissive * uMaterialEmissiveStrength * emissiveMask;
+        emission *= uEmissiveFactor;
+    }
     vec3 color = Lo + ambient + scattering + emission;
     FragColor = vec4(color, baseColor.a);
 }

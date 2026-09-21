@@ -4,7 +4,8 @@
 
 This project is based on the Black Lodge from Twin Peaks.
 Features a Physically Based Model with lighting, Directional and Point Shadow Maps  
-and Physically Based Bloom
+and Physically Based Bloom.  
+My decision to use a PBR light model was based on curiosity and a desire to utilize all textures provided by the model.
 
 ## Controls
 
@@ -46,14 +47,18 @@ LIGHTS}
 
 ## Models:
 
-[https://sketchfab.com/3d-models/twin-peaks-black-lodge-remake-low-poly-22fc860b46e441f7a7688492da425f45]   
+Black Lodge model
+(https://sketchfab.com/3d-models/twin-peaks-black-lodge-remake-low-poly-22fc860b46e441f7a7688492da425f45)   
 "Twin Peaks Black Lodge Remake (low-poly)" (https://skfb.ly/opO6J) by pan.stasian is licensed under Creative Commons
 Attribution (http://creativecommons.org/licenses/by/4.0/).  
-[https://sketchfab.com/3d-models/venus-de-milo-statuestexturingchallenge-smk-2983d92ac4e744f485492580ca7629f2]
+Statue of Venus de Milo  
+(https://sketchfab.com/3d-models/venus-de-milo-statuestexturingchallenge-smk-2983d92ac4e744f485492580ca7629f2)  
+CC0 Public Domain    
+Credit is not mandatory. Commercial use is allowed.
 
 ## Textures
 
-[link1]  
-[link2]
+## Extra Articles
 
-{OTHER-RESOURCES}
+https://learnopengl.com/PBR/Lighting  
+https://learnopengl.com/Guest-Articles/2022/Phys.-Based-Bloom  

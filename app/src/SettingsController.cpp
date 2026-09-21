@@ -23,6 +23,7 @@ void SettingsController::reset() {
     u_slight_color = glm::vec3(1.0f);
 
     u_plight_intensity = 1.0f;
+    u_lamp_emission_factor = 1.0f;
     u_dlight_intensity = 1.0f;
     u_slight_intensity = 3.0f;
     u_exposure = 1.0f;

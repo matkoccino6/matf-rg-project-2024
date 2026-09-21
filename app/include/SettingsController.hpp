@@ -24,6 +24,7 @@ public:
     glm::vec3 u_slight_color = glm::vec3(1.0, 0.7, 0.4);
 
     float u_plight_intensity = 3.0f * m_scale;
+    float u_lamp_emission_factor = 3.0f;
     float u_dlight_intensity = 0.0f;
     float u_slight_intensity = 3.0f;
 

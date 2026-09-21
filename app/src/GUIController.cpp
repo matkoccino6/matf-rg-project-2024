@@ -64,6 +64,7 @@ void GUIController::draw() {
             ImGui::SliderFloat("Far", &settings->far, 0.2f, 1000.0f);
             ImGui::SliderFloat("Roughness Factor", &settings->u_r_factor, 0.0f, 1.0f);
             ImGui::SliderFloat("Emissive Factor", &settings->u_emissive_factor, 0.0f, 1000.0f);
+            ImGui::SliderFloat("Lamp Emission Factor", &settings->u_lamp_emission_factor, 0.0f, 100.0f);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Post Processing")) {
