@@ -7,22 +7,23 @@
 namespace engine::black_lodge::app {
 class SettingsController final : public core::Controller {
 public:
+    float m_scale = 0.1f;
     float u_ambient_strength = 0.05f;
-    float far = 200.0f;
-    glm::vec3 camera_position = glm::vec3(0.0f, 10.0f, 0.0f);
+    float far = 200.0f * m_scale;
+    glm::vec3 camera_position = glm::vec3(0.0f, 2.0f, 0.0f);
 
-    glm::vec3 u_plight_pos1 = glm::vec3(10.9f, 17.4f, 52.9f);
-    glm::vec3 u_plight_pos2 = glm::vec3(39.9f, 17.4f, 52.9f);
-    glm::vec3 u_dlight_dir = glm::vec3(-10.0f);
-    glm::vec3 u_slight_pos = glm::vec3(0.0f, 45.0f, 0.0f);
-    glm::vec3 u_slight_dir = glm::vec3(20.0f, -33.0f, 42.0f);
+    glm::vec3 u_plight_pos1 = glm::vec3(-3.99f, 1.74f, -5.29f);
+    glm::vec3 u_plight_pos2 = glm::vec3(-1.23f, 1.74f, -5.29f);
+    glm::vec3 u_dlight_dir = glm::vec3(-10.0f) * m_scale;
+    glm::vec3 u_slight_pos = glm::vec3(1.08f, 6.39f, 1.68f);
+    glm::vec3 u_slight_dir = glm::vec3(-6.93f, -7.65f, -9.46f);
 
     glm::vec3 u_plight_color1 = glm::vec3(1.0f);
     glm::vec3 u_plight_color2 = glm::vec3(1.0f);
     glm::vec3 u_dlight_color = glm::vec3(1.0f);
     glm::vec3 u_slight_color = glm::vec3(1.0f);
 
-    float u_plight_intensity = 1.0f;
+    float u_plight_intensity = 3.0f * m_scale;
     float u_dlight_intensity = 0.0f;
     float u_slight_intensity = 20.0f;
 

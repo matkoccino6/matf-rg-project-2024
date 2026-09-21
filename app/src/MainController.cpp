@@ -56,8 +56,10 @@ void MainController::draw() {
     const auto graphics = get<graphics::GraphicsController>();
     const auto shader = get<resources::ResourcesController>()->shader("lighting");
     const auto lodge = get<resources::ResourcesController>()->model("black_lodge");
+    const auto statue = get<resources::ResourcesController>()->model("statue");
     const auto settings = get<SettingsController>();
-    const auto model = glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
+    auto model = glm::scale(glm::mat4(1.0f), glm::vec3(settings->m_scale));
+    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0, 1.0, 0.0));
 
     graphics::OpenGL::set_viewport(
             graphics->perspective_params().Width, graphics->perspective_params().Height);
@@ -99,6 +101,7 @@ void MainController::draw() {
 
     shader->set_float("rFactor", settings->u_r_factor);
     shader->set_float("uEmissiveFactor", settings->u_emissive_factor);
+
     const auto shadows = get<ShadowController>();
     shader->set_mat4("uLightSpaceMatrix", shadows->directional_shadow_map().light_view_projection());
     shader->set_vec3("uDirectionalShadowLightDir", settings->u_dlight_dir);
@@ -121,6 +124,10 @@ void MainController::draw() {
     shadows->spot_shadow_map().bind_texture(ShadowController::spot_texture_unit());
 
     lodge->draw(shader);
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(-2.5, 0.0, -6.2));
+    model = glm::scale(model, glm::vec3(settings->m_scale / 100.0f));
+    shader->set_mat4("uModel", model);
+    statue->draw(shader);
 }
 
 void MainController::end_draw() {
@@ -129,12 +136,12 @@ void MainController::end_draw() {
 }
 
 void MainController::update_camera() {
-    auto gui = engine::core::Controller::get<GUIController>();
+    auto gui = get<GUIController>();
     if (gui->is_enabled()) {
         return;
     }
-    const auto platform = engine::core::Controller::get<engine::platform::PlatformController>();
-    const auto camera = engine::core::Controller::get<engine::graphics::GraphicsController>()->camera();
+    const auto platform = get<platform::PlatformController>();
+    const auto camera = get<graphics::GraphicsController>()->camera();
     const float dt = platform->dt();
     if (platform->key(platform::KEY_W).state() == platform::Key::State::Pressed) {
         camera->move_camera(graphics::Camera::Movement::FORWARD, dt);

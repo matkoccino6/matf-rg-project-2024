@@ -49,7 +49,7 @@ void EventController::trigger_event_a() {
     settings->u_plight_intensity = 0.08f;
     settings->u_slight_color = glm::vec3(0.5f, 0.0f, 1.0f);
     settings->u_slight_intensity = 0.15f;
-    settings->u_ambient_strength = 0.01f;
+    settings->u_ambient_strength = 0.0f;
 }
 
 void EventController::trigger_event_b() const {
@@ -66,7 +66,7 @@ void EventController::trigger_event_b() const {
     settings->u_plight_intensity = intensity;
     settings->u_slight_color = glm::vec3(0.3f, 0.1f, 0.85f);
     settings->u_slight_intensity = flash_on ? 18.0f : 0.0f;
-    settings->u_ambient_strength = flash_on ? 0.2f : 0.005f;
+    settings->u_ambient_strength = flash_on ? 0.2f : 0.0f;
     settings->u_emissive_factor = flash_on ? 0.0f : 1000.0f;
 }
 

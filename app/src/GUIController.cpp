@@ -31,15 +31,15 @@ void GUIController::draw() {
     ImGui::Text("Camera front: (%f, %f, %f)", c.Front.x, c.Front.y, c.Front.z);
     if (ImGui::BeginTabBar("LightTabs")) {
         if (ImGui::BeginTabItem("Directional")) {
-            ImGui::SliderFloat3("Directional Light direction", glm::value_ptr(settings->u_dlight_dir), -100.0f,
-                                100.0f);
+            ImGui::SliderFloat3("Directional Light direction", glm::value_ptr(settings->u_dlight_dir), -10.0f,
+                                10.0f);
             ImGui::SliderFloat("Directional Light Intensity", &settings->u_dlight_intensity, 0.0f, 20.0f);
             ImGui::ColorEdit3("Direction Color", glm::value_ptr(settings->u_dlight_color));
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Point Lights")) {
-            ImGui::SliderFloat3("Point Light Position 1", glm::value_ptr(settings->u_plight_pos1), -100.0f, 100.0f);
-            ImGui::SliderFloat3("Point Light Position 2", glm::value_ptr(settings->u_plight_pos2), -100.0f, 100.0f);
+            ImGui::SliderFloat3("Point Light Position 1", glm::value_ptr(settings->u_plight_pos1), -10.0f, 10.0f);
+            ImGui::SliderFloat3("Point Light Position 2", glm::value_ptr(settings->u_plight_pos2), -10.0f, 10.0f);
 
             ImGui::ColorEdit3("Point Light Color 1", glm::value_ptr(settings->u_plight_color1));
             ImGui::ColorEdit3("Point Light Color 2", glm::value_ptr(settings->u_plight_color2));
@@ -47,8 +47,8 @@ void GUIController::draw() {
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Spot Light")) {
-            ImGui::SliderFloat3("Position", glm::value_ptr(settings->u_slight_pos), -100.0f, 100.0f);
-            ImGui::SliderFloat3("Direction", glm::value_ptr(settings->u_slight_dir), -100.0f, 100.0f);
+            ImGui::SliderFloat3("Position", glm::value_ptr(settings->u_slight_pos), -10.0f, 10.0f);
+            ImGui::SliderFloat3("Direction", glm::value_ptr(settings->u_slight_dir), -10.0f, 10.0f);
             ImGui::ColorEdit3("Color", glm::value_ptr(settings->u_slight_color));
             ImGui::SliderFloat("Intensity", &settings->u_slight_intensity, 0.0f, 1000.0f);
             ImGui::SliderFloat("Inner Angle", &settings->u_slight_cut_off, 1.0f, 45.0f);
