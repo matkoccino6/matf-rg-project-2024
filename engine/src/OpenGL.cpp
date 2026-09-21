@@ -141,7 +141,9 @@ uint32_t OpenGL::load_skybox_textures(const std::filesystem::path &path, bool fl
     CHECKED_GL_CALL(glGenTextures, 1, &texture_id);
     CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_CUBE_MAP, texture_id);
 
-    int width, height, nr_channels;
+    int width;
+    int height;
+    int nr_channels;
     for (const auto &file: std::filesystem::directory_iterator(path)) {
         stbi_set_flip_vertically_on_load(flip_uvs);
         unsigned char *data = stbi_load(absolute(file).c_str(), &width, &height, &nr_channels, 0);

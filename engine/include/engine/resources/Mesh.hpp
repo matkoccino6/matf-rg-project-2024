@@ -32,6 +32,10 @@ enum class AlphaMode {
 
 struct Material {
     glm::vec4 base_color{1.0f};
+    glm::vec3 emissive_color{0.0f};
+    float emissive_strength{0.0f};
+    bool emissive_top_only{false};
+    float emissive_top_start{1.0f};
     float metallic{0.0f};
     float roughness{1.0f};
     float opacity{1.0f};

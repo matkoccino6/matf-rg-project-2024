@@ -4,6 +4,10 @@
       "black_lodge": {
         "path": "apple_black/source/Black Lodge.fbx",
         "flip_uvs": true
+      },
+      "statue": {
+        "path": "venus-de-milo/scene.gltf",
+        "flip_uvs": true
       }
     }
   },

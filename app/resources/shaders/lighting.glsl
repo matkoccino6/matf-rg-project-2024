@@ -14,14 +14,44 @@ out vec3 TangentDLightDir;
 out vec3 TangentLightPos[NUM_PLIGHTS];
 out vec3 TangentViewPos;
 out vec3 TangentFragPos;
+out vec3 TangentSpotLightPos;
+out vec3 TangentSpotLightDir;
 out mat3 vTBN;
+out float EmissiveHeight;
 
 uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
-uniform vec3 uDLightDir;
-uniform vec3 uLightPos[NUM_PLIGHTS];
 uniform vec3 uViewPos;
+
+struct DirLight {
+    vec3 color;
+    vec3 direction;
+    float intensity;
+};
+struct PointLight {
+    vec3 color;
+    vec3 position;
+    float intensity;
+    float constant;
+    float linear;
+    float quadratic;
+};
+struct SpotLight {
+    vec3 color;
+    vec3 position;
+    vec3 direction;
+    float cutOff;
+    float outerCutOff;
+    float intensity;
+    float constant;
+    float linear;
+    float quadratic;
+};
+uniform SpotLight uSpotLight;
+uniform DirLight uDirLight;
+uniform PointLight uPointLights[NUM_PLIGHTS];
+
 void main() {
     FragPos = vec3(uModel * vec4(aPos, 1.0));
     TexCoords = aTexCoords;
@@ -33,12 +63,15 @@ void main() {
     vec3 B = cross(N, T);
     mat3 TBN = transpose(mat3(T, B, N));
     vTBN = TBN;
-    TangentDLightDir = TBN * uDLightDir;
+    TangentDLightDir = TBN * uDirLight.direction;
     for (int i = 0; i < NUM_PLIGHTS; i++) {
-        TangentLightPos[i] = TBN * uLightPos[i];
+        TangentLightPos[i] = TBN * uPointLights[i].position;
     }
+    TangentSpotLightPos = TBN * uSpotLight.position;
+    TangentSpotLightDir = TBN * uSpotLight.direction;
     TangentViewPos = TBN * uViewPos;
     TangentFragPos = TBN * FragPos;
+    EmissiveHeight = aPos.y;
     gl_Position = uProjection * uView * vec4(FragPos, 1.0);
 }
 
@@ -54,7 +87,10 @@ in vec3 TangentDLightDir;
 in vec3 TangentLightPos[NUM_PLIGHTS];
 in vec3 TangentViewPos;
 in vec3 TangentFragPos;
+in vec3 TangentSpotLightPos;
+in vec3 TangentSpotLightDir;
 in mat3 vTBN;
+in float EmissiveHeight;
 
 uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_normal1;
@@ -66,6 +102,7 @@ uniform sampler2D texture_emissive1;
 uniform sampler2D texture_opacity1;
 uniform sampler2D texture_specular_level1;
 uniform sampler2D texture_scattering1;
+uniform bool has_texture_diffuse1;
 uniform bool has_texture_normal1;
 uniform bool has_texture_metallic_roughness1;
 uniform bool has_texture_metallic1;
@@ -76,6 +113,15 @@ uniform bool has_texture_opacity1;
 uniform bool has_texture_specular_level1;
 uniform bool has_texture_scattering1;
 uniform vec4 uBaseColor;
+uniform vec3 uMaterialEmissive;
+uniform float uMaterialEmissiveStrength;
+uniform bool uMaterialEmissiveTopOnly;
+uniform float uMaterialEmissiveTopStart;
+uniform vec3 uLampEmissionColor1;
+uniform vec3 uLampEmissionColor2;
+uniform vec3 uLampPosition1;
+uniform vec3 uLampPosition2;
+uniform float uLampEmissionFactor;
 uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform float uOpacity;
@@ -85,15 +131,29 @@ uniform float uAlphaCutoff;
 uniform float rFactor = 0.15;
 struct DirLight {
     vec3 color;
+    vec3 direction;
     float intensity;
 };
 struct PointLight {
     vec3 color;
+    vec3 position;
     float intensity;
     float constant;
     float linear;
     float quadratic;
 };
+struct SpotLight {
+    vec3 color;
+    vec3 position;
+    vec3 direction;
+    float cutOff;
+    float outerCutOff;
+    float intensity;
+    float constant;
+    float linear;
+    float quadratic;
+};
+uniform SpotLight uSpotLight;
 uniform DirLight uDirLight;
 uniform PointLight uPointLights[NUM_PLIGHTS];
 uniform mat4 uLightSpaceMatrix;
@@ -106,6 +166,11 @@ uniform vec3 uPointShadowLightPos2;
 uniform vec3 uViewPos;
 uniform samplerCube uPointShadowMaps[NUM_PLIGHTS];
 uniform float uPointShadowFarPlane;
+uniform mat4 uSpotLightSpaceMatrix;
+uniform sampler2D uSpotShadowMap;
+uniform vec3 uSpotShadowLightPos;
+uniform float uSpotShadowFarPlane;
+uniform bool uUseSpotShadowMap;
 
 const float PI = 3.14159265359;
 uniform float uAmbientStrength = 0.1f;
@@ -159,21 +224,21 @@ float DirectionalShadow(vec3 fragPos, vec3 worldNormal) {
     vec4 lightSpacePosition = uLightSpaceMatrix * vec4(fragPos, 1.0);
     vec3 projected = lightSpacePosition.xyz / lightSpacePosition.w;
     projected = projected * 0.5 + 0.5;
-    if (projected.z > 1.0 || projected.x < 0.0 || projected.x > 1.0 ||
-    projected.y < 0.0 || projected.y > 1.0) {
+    if (projected.z < 0.0 || projected.z > 1.0 || projected.x < 0.0 || projected.x > 1.0 ||
+        projected.y < 0.0 || projected.y > 1.0) {
         return 0.0;
     }
     float currentDepth = projected.z;
     float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(-uDirectionalShadowLightDir))), 0.0005);
     float shadow = 0.0;
     vec2 texelSize = vec2(1.0) / textureSize(uShadowMap, 0);
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
+    for (int x = -2; x <= 2; ++x) {
+        for (int y = -2; y <= 2; ++y) {
             float closestDepth = texture(uShadowMap, projected.xy + vec2(x, y) * texelSize).r;
             shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
         }
     }
-    return shadow / 9.0;
+    return shadow / 25.0;
 }
 float PointShadow(vec3 fragPos, vec3 lightPos, int k, vec3 worldNormal) {
     vec3 lightToFragment = fragPos - lightPos;
@@ -181,7 +246,8 @@ float PointShadow(vec3 fragPos, vec3 lightPos, int k, vec3 worldNormal) {
     float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(lightToFragment))), 0.0005);
     float shadow = 0.0;
     float viewDistance = length(uViewPos - fragPos);
-    float diskRadius = (1.0 + (viewDistance / uPointShadowFarPlane)) / 25.0;
+    float texelSize = 1.0 / float(textureSize(uPointShadowMaps[0], 0).x);
+    float diskRadius = texelSize * (1.0 + (viewDistance / uPointShadowFarPlane)) * 4.0;
     int samples = 20;
     for (int i = 0; i < samples; ++i) {
         float closestDepth;
@@ -194,6 +260,37 @@ float PointShadow(vec3 fragPos, vec3 lightPos, int k, vec3 worldNormal) {
         shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
     }
     return shadow / float(samples);
+}
+float SpotShadow(vec3 fragPos, vec3 lightPos, vec3 worldNormal) {
+    vec3 lightToFragment = fragPos - lightPos;
+    vec3 fragmentToLight = normalize(-lightToFragment);
+    float coneAlignment = dot(fragmentToLight, normalize(-uSpotLight.direction));
+    if (coneAlignment <= uSpotLight.outerCutOff) {
+        return 0.0;
+    }
+
+    vec4 lightSpacePosition = uSpotLightSpaceMatrix * vec4(fragPos, 1.0);
+    if (lightSpacePosition.w <= 0.0) {
+        return 0.0;
+    }
+    vec3 projected = lightSpacePosition.xyz / lightSpacePosition.w;
+    projected = projected * 0.5 + 0.5;
+    if (projected.z < 0.0 || projected.z > 1.0 || projected.x < 0.0 || projected.x > 1.0 ||
+        projected.y < 0.0 || projected.y > 1.0) {
+        return 0.0;
+    }
+
+    float currentDepth = length(lightToFragment) / uSpotShadowFarPlane;
+    float bias = max(0.005 * (1.0 - dot(worldNormal, normalize(-lightToFragment))), 0.0005);
+    vec2 texelSize = vec2(1.0) / textureSize(uSpotShadowMap, 0);
+    float shadow = 0.0;
+    for (int x = -2; x <= 2; ++x) {
+        for (int y = -2; y <= 2; ++y) {
+            float closestDepth = texture(uSpotShadowMap, projected.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+        }
+    }
+    return shadow / 25.0;
 }
 vec3 CalcPointLight(PointLight light, vec3 tangentLightPos, vec3 fragPosTangent, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
     vec3 lightDir = normalize(tangentLightPos - fragPosTangent);
@@ -239,8 +336,39 @@ vec3 CalcDirLight(DirLight light, vec3 tanDLightDir, vec3 normal, vec3 viewDir, 
 
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
+vec3 CalcSpotLight(SpotLight light, vec3 tangentLightPos, vec3 tangentLightDir, vec3 fragPosTangent, vec3 normal, vec3 viewDir, vec3 albedo, float metallic, float roughness, vec3 F0) {
+    vec3 lightDir = normalize(tangentLightPos - fragPosTangent);
+    float theta = dot(lightDir, normalize(-tangentLightDir));
+    float epsilon = light.cutOff - light.outerCutOff;
+    float spotFactor = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+
+    vec3 halfVec = normalize(viewDir + lightDir);
+
+    float distance = length(tangentLightPos - fragPosTangent);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+
+    vec3 radiance = light.color * light.intensity * attenuation * spotFactor;
+
+    float NDF = DistributionGGX(normal, halfVec, roughness);
+    float G = GeometrySmith(normal, viewDir, lightDir, roughness);
+    vec3 F = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+    float NdotL = max(dot(normal, lightDir), 0.0);
+
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
 void main() {
-    vec4 baseColor = texture(texture_diffuse1, TexCoords) * uBaseColor;
+    vec4 baseColor = uBaseColor;
+    if (has_texture_diffuse1) {
+        baseColor *= texture(texture_diffuse1, TexCoords);
+    }
     if (has_texture_opacity1) {
         baseColor.a *= texture(texture_opacity1, TexCoords).a;
     }
@@ -249,8 +377,10 @@ void main() {
         discard;
     }
     vec3 albedo = baseColor.rgb;
-    vec3 normalMap = texture(texture_normal1, TexCoords).rgb;
-    vec3 normal = has_texture_normal1 ? normalize(normalMap * 2.0 - 1.0) : normalize(vec3(0.0, 0.0, 1.0));
+    vec3 normal = normalize(vec3(0.0, 0.0, 1.0));
+    if (has_texture_normal1) {
+        normal = normalize(texture(texture_normal1, TexCoords).rgb * 2.0 - 1.0);
+    }
     vec3 normalDx = dFdx(normal);
     vec3 normalDy = dFdy(normal);
 
@@ -280,9 +410,12 @@ void main() {
     float directionalShadow = uUseShadowMap ? DirectionalShadow(FragPos, worldNormal) : 0.0;
     float pointShadow0 = uUsePointShadowMap ? PointShadow(FragPos, uPointShadowLightPos1, 0, worldNormal) : 0.0;
     float pointShadow1 = uUsePointShadowMap ? PointShadow(FragPos, uPointShadowLightPos2, 1, worldNormal) : 0.0;
+    float spotShadow = uUseSpotShadowMap ? SpotShadow(FragPos, uSpotShadowLightPos, worldNormal) : 0.0;
 
     Lo += CalcDirLight(uDirLight, TangentDLightDir, normal, viewDir, albedo, metallic, roughness, F0)
     * (1.0 - directionalShadow);
+    Lo += CalcSpotLight(uSpotLight, TangentSpotLightPos, TangentSpotLightDir, TangentFragPos, normal, viewDir,
+                        albedo, metallic, roughness, F0) * (1.0 - spotShadow);
     for (int i = 0; i < NUM_PLIGHTS; i++) {
         float visibility = i == 0 ? 1.0 - pointShadow0 : 1.0 - pointShadow1;
         Lo += CalcPointLight(uPointLights[i], TangentLightPos[i], TangentFragPos, normal, viewDir, albedo,
@@ -290,7 +423,23 @@ void main() {
     }
     vec3 emission = vec3(0.0);
     emission = has_texture_emissive1 ? texture(texture_emissive1, TexCoords).rgb : vec3(0.0);
-    emission *= uEmissiveFactor;
+    float emissiveMask = 1.0;
+    if (uMaterialEmissiveTopOnly) {
+        float topMask = step(uMaterialEmissiveTopStart, EmissiveHeight);
+        float inwardMask = smoothstep(0.0, 0.5, normalize(Normal).y);
+        emissiveMask = topMask * inwardMask;
+    }
+    if (uMaterialEmissiveTopOnly) {
+        float distance1 = max(distance(FragPos, uLampPosition1), 0.001);
+        float distance2 = max(distance(FragPos, uLampPosition2), 0.001);
+        float weight1 = 1.0 / distance1;
+        float weight2 = 1.0 / distance2;
+        emission = (uLampEmissionColor1 * weight1 + uLampEmissionColor2 * weight2)
+                   / (weight1 + weight2) * uLampEmissionFactor * emissiveMask;
+    } else {
+        emission += uMaterialEmissive * uMaterialEmissiveStrength * emissiveMask;
+        emission *= uEmissiveFactor;
+    }
     vec3 color = Lo + ambient + scattering + emission;
     FragColor = vec4(color, baseColor.a);
 }

@@ -37,7 +37,6 @@ private:
 
     void update_camera();
 
-    float m_scale{1.0f};
     bool m_draw_gui{false};
     bool m_cursor_enabled{true};
 };

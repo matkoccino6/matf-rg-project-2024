@@ -3,13 +3,13 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <cctype>
 #include <engine/graphics/OpenGL.hpp>
 #include <engine/resources/ResourcesController.hpp>
 #include <engine/resources/ShaderCompiler.hpp>
 #include <engine/util/Configuration.hpp>
 #include <engine/util/Errors.hpp>
 #include <spdlog/spdlog.h>
-#include <unordered_set>
 #include <utility>
 
 namespace engine::resources {
@@ -240,11 +240,33 @@ void AssimpSceneProcessor::process_mesh(aiMesh *mesh) {
     std::vector<Texture *> textures = process_materials(material);
     Material mesh_material;
     aiColor4D color;
+    aiString material_name;
+    material->Get(AI_MATKEY_NAME, material_name);
     if (material->Get(AI_MATKEY_BASE_COLOR, color) != AI_SUCCESS &&
         material->Get(AI_MATKEY_COLOR_DIFFUSE, color) != AI_SUCCESS) {
         color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f);
     }
     mesh_material.base_color = {color.r, color.g, color.b, color.a};
+    std::string material_name_lower = material_name.C_Str();
+    std::transform(material_name_lower.begin(), material_name_lower.end(), material_name_lower.begin(),
+                   [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+    const bool is_lamp_material = material_name_lower.find("lamp") != std::string::npos;
+
+    aiColor4D emissive_color;
+    if (is_lamp_material) {
+        mesh_material.emissive_top_only = true;
+        float min_y = mesh->mVertices[0].y;
+        float max_y = min_y;
+        for (unsigned int i = 1; i < mesh->mNumVertices; ++i) {
+            min_y = std::min(min_y, mesh->mVertices[i].y);
+            max_y = std::max(max_y, mesh->mVertices[i].y);
+        }
+        const float height = std::max(max_y - min_y, 0.0001f);
+        mesh_material.emissive_top_start = max_y - height * 0.12f;
+    } else if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive_color) == AI_SUCCESS) {
+        mesh_material.emissive_color = {emissive_color.r, emissive_color.g, emissive_color.b};
+        mesh_material.emissive_strength = 1.0f;
+    }
     material->Get(AI_MATKEY_METALLIC_FACTOR, mesh_material.metallic);
     material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mesh_material.roughness);
     material->Get(AI_MATKEY_OPACITY, mesh_material.opacity);
@@ -261,8 +283,6 @@ void AssimpSceneProcessor::process_mesh(aiMesh *mesh) {
         mesh_material.alpha_mode = AlphaMode::Blend;
     }
     material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, mesh_material.alpha_cutoff);
-    aiString material_name;
-    material->Get(AI_MATKEY_NAME, material_name);
     spdlog::info(
             "material(name={}, base_color=({}, {}, {}, {}), metallic={}, roughness={}, opacity={}, transparent={}, "
             "alpha_cutoff={}, textures={})",
