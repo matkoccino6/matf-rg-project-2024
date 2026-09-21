@@ -9,7 +9,7 @@ class SettingsController final : public core::Controller {
 public:
     float m_scale = 0.1f;
     float u_ambient_strength = 0.01f;
-    float far = 200.0f * m_scale;
+    float far = 250.0f * m_scale;
     glm::vec3 camera_position = glm::vec3(0.0f, 2.0f, 0.0f);
 
     glm::vec3 u_plight_pos1 = glm::vec3(-3.99f, 1.9f, -5.29f);
