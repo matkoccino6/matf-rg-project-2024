@@ -78,7 +78,7 @@ public:
     * @param flip_uvs flip_uvs on load.
     * @returns OpenGL id of a texture object.
     */
-    static uint32_t generate_texture(const std::filesystem::path &path, bool flip_uvs);
+    static uint32_t generate_texture(const std::filesystem::path &path, bool flip_uvs, bool srgb = false);
 
     /**
     * @brief Get texture format for a `number_of_channels`.
@@ -133,6 +133,23 @@ public:
     * @brief Clears GL_DEPTH_BUFFER_BIT, GL_COLOR_BUFFER_BIT, and GL_STENCIL_BUFFER_BIT.
     */
     static void clear_buffers();
+
+    /**
+    * @brief Sets the viewport dimensions.
+    */
+    static void set_viewport(int width, int height);
+
+    /**
+    * @brief Draws a texture over the entire viewport.
+    */
+    static void draw_fullscreen_texture(const resources::Shader *shader, uint32_t texture);
+
+    /**
+    * @brief Draws a scene texture combined with a bloom texture over the entire viewport.
+    */
+    static void draw_fullscreen_composite(const resources::Shader *shader,
+                                          uint32_t scene_texture,
+                                          uint32_t bloom_texture);
 
     /**
     * @brief Retrieve the shader compilation error log message.

@@ -22,7 +22,7 @@ int32_t OpenGL::shader_type_to_opengl_type(resources::ShaderType type) {
     }
 }
 
-uint32_t OpenGL::generate_texture(const std::filesystem::path &path, bool flip_uvs) {
+uint32_t OpenGL::generate_texture(const std::filesystem::path &path, bool flip_uvs, bool srgb) {
     uint32_t texture_id = 0;
     CHECKED_GL_CALL(glGenTextures, 1, &texture_id);
 
@@ -36,7 +36,10 @@ uint32_t OpenGL::generate_texture(const std::filesystem::path &path, bool flip_u
         int32_t format = texture_format(nr_components);
 
         CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, texture_id);
-        CHECKED_GL_CALL(glTexImage2D, GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        const int32_t internal_format =
+                srgb && (format == GL_RGB || format == GL_RGBA) ? (format == GL_RGBA ? GL_SRGB_ALPHA : GL_SRGB) : format;
+        CHECKED_GL_CALL(glTexImage2D, GL_TEXTURE_2D, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE,
+                        data);
         CHECKED_GL_CALL(glGenerateMipmap, GL_TEXTURE_2D);
 
         CHECKED_GL_CALL(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -138,7 +141,9 @@ uint32_t OpenGL::load_skybox_textures(const std::filesystem::path &path, bool fl
     CHECKED_GL_CALL(glGenTextures, 1, &texture_id);
     CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_CUBE_MAP, texture_id);
 
-    int width, height, nr_channels;
+    int width;
+    int height;
+    int nr_channels;
     for (const auto &file: std::filesystem::directory_iterator(path)) {
         stbi_set_flip_vertically_on_load(flip_uvs);
         unsigned char *data = stbi_load(absolute(file).c_str(), &width, &height, &nr_channels, 0);
@@ -175,6 +180,92 @@ void OpenGL::disable_depth_testing() {
 
 void OpenGL::clear_buffers() {
     CHECKED_GL_CALL(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+
+void OpenGL::set_viewport(int width, int height) {
+    CHECKED_GL_CALL(glViewport, 0, 0, width, height);
+}
+
+void OpenGL::draw_fullscreen_texture(const resources::Shader *shader, uint32_t texture) {
+    static uint32_t vao = 0;
+    static uint32_t vbo = 0;
+    if (vao == 0) {
+        constexpr float vertices[] = {
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, -1.0f, 1.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, 1.0f, 0.0f, 1.0f};
+
+        CHECKED_GL_CALL(glGenVertexArrays, 1, &vao);
+        CHECKED_GL_CALL(glGenBuffers, 1, &vbo);
+        CHECKED_GL_CALL(glBindVertexArray, vao);
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, vbo);
+        CHECKED_GL_CALL(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 0);
+        CHECKED_GL_CALL(glVertexAttribPointer, 0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 1);
+        CHECKED_GL_CALL(glVertexAttribPointer, 1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                        reinterpret_cast<void *>(2 * sizeof(float)));
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, 0);
+        CHECKED_GL_CALL(glBindVertexArray, 0);
+    }
+
+    shader->use();
+    shader->set_int("screenTexture", 0);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, texture);
+    CHECKED_GL_CALL(glBindVertexArray, vao);
+    CHECKED_GL_CALL(glDrawArrays, GL_TRIANGLES, 0, 6);
+    CHECKED_GL_CALL(glBindVertexArray, 0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+}
+
+void OpenGL::draw_fullscreen_composite(const resources::Shader *shader,
+                                       uint32_t scene_texture,
+                                       uint32_t bloom_texture) {
+    shader->use();
+    shader->set_int("sceneTexture", 0);
+    shader->set_int("bloomTexture", 1);
+
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, scene_texture);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE1);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, bloom_texture);
+
+    static uint32_t vao = 0;
+    static uint32_t vbo = 0;
+    if (vao == 0) {
+        constexpr float vertices[] = {
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, -1.0f, 1.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                -1.0f, 1.0f, 0.0f, 1.0f};
+
+        CHECKED_GL_CALL(glGenVertexArrays, 1, &vao);
+        CHECKED_GL_CALL(glGenBuffers, 1, &vbo);
+        CHECKED_GL_CALL(glBindVertexArray, vao);
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, vbo);
+        CHECKED_GL_CALL(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 0);
+        CHECKED_GL_CALL(glVertexAttribPointer, 0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        CHECKED_GL_CALL(glEnableVertexAttribArray, 1);
+        CHECKED_GL_CALL(glVertexAttribPointer, 1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                        reinterpret_cast<void *>(2 * sizeof(float)));
+        CHECKED_GL_CALL(glBindBuffer, GL_ARRAY_BUFFER, 0);
+        CHECKED_GL_CALL(glBindVertexArray, 0);
+    }
+
+    CHECKED_GL_CALL(glBindVertexArray, vao);
+    CHECKED_GL_CALL(glDrawArrays, GL_TRIANGLES, 0, 6);
+    CHECKED_GL_CALL(glBindVertexArray, 0);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE1);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0);
+    CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
 }
 
 uint32_t face_index(std::string_view name) {

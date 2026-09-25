@@ -1,20 +1,23 @@
-
 // clang-format off
 #include <glad/glad.h>
 // clang-format on
 #include <engine/graphics/OpenGL.hpp>
 #include <engine/resources/Mesh.hpp>
 #include <engine/resources/Shader.hpp>
+#include <engine/util/Errors.hpp>
 #include <engine/util/Utils.hpp>
 #include <unordered_map>
 
 namespace engine::resources {
-
 Mesh::Mesh(const std::vector<Vertex> &vertices, const std::vector<uint32_t> &indices,
-           std::vector<Texture *> textures) {
+           std::vector<Texture *> textures, Material material)
+    : m_textures(std::move(textures))
+    , m_material(material) {
     // NOLINTBEGIN
     static_assert(std::is_trivial_v<Vertex>);
-    uint32_t vao, vbo, ebo;
+    uint32_t vao;
+    uint32_t vbo;
+    uint32_t ebo;
     CHECKED_GL_CALL(glGenVertexArrays, 1, &vao);
     CHECKED_GL_CALL(glGenBuffers, 1, &vbo);
     CHECKED_GL_CALL(glGenBuffers, 1, &ebo);
@@ -45,30 +48,78 @@ Mesh::Mesh(const std::vector<Vertex> &vertices, const std::vector<uint32_t> &ind
     // NOLINTEND
     m_vao = vao;
     m_num_indices = indices.size();
-    m_textures = std::move(textures);
 }
 
 void Mesh::draw(const Shader *shader) {
+    shader->set_vec4("uBaseColor", m_material.base_color);
+    shader->set_vec3("uMaterialEmissive", m_material.emissive_color);
+    shader->set_float("uMaterialEmissiveStrength", m_material.emissive_strength);
+    shader->set_bool("uMaterialEmissiveTopOnly", m_material.emissive_top_only);
+    shader->set_float("uMaterialEmissiveTopStart", m_material.emissive_top_start);
+    shader->set_float("uMetallicFactor", m_material.metallic);
+    shader->set_float("uRoughnessFactor", m_material.roughness);
+    shader->set_float("uOpacity", m_material.opacity);
+    shader->set_int("uAlphaMode", static_cast<int>(m_material.alpha_mode));
+    shader->set_float("uAlphaCutoff", m_material.alpha_cutoff);
+
     std::unordered_map<std::string_view, uint32_t> counts;
+    const auto texture_unit_base = [](TextureType type) {
+        switch (type) {
+            case TextureType::Diffuse: return 0;
+            case TextureType::Specular: return 4;
+            case TextureType::SpecularLevel: return 5;
+            case TextureType::Normal: return 8;
+            case TextureType::Height: return 12;
+            case TextureType::MetallicRoughness: return 16;
+            case TextureType::Metallic: return 20;
+            case TextureType::Roughness: return 21;
+            case TextureType::Scattering: return 22;
+            case TextureType::Occlusion: return 24;
+            case TextureType::Emissive: return 28;
+            case TextureType::Opacity: return 30;
+            case TextureType::Regular: return 31;
+        }
+        RG_SHOULD_NOT_REACH_HERE("Unhandled texture type");
+    };
+    //Unbind previously bound textures if there are any
+    for (const auto type: {
+                 TextureType::Diffuse, TextureType::Specular, TextureType::SpecularLevel, TextureType::Normal,
+                 TextureType::Height, TextureType::MetallicRoughness, TextureType::Occlusion,
+                 TextureType::Metallic, TextureType::Roughness, TextureType::Emissive,
+                 TextureType::Opacity, TextureType::Scattering, TextureType::Regular}) {
+        const auto unit = texture_unit_base(type);
+        CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0 + unit);
+        CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, 0);
+        shader->set_int(std::string(Texture::uniform_name_convention(type)) + "1", unit);
+        shader->set_bool("has_" + std::string(Texture::uniform_name_convention(type)) + "1", false);
+    }
+
     std::string uniform_name;
     uniform_name.reserve(32);
-    for (int i = 0; i < m_textures.size(); i++) {
-        CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0 + i);
-        const auto &texture_type = Texture::uniform_name_convention(m_textures[i]->type());
+    for (const auto *texture: m_textures) {
+        const auto &texture_type = Texture::uniform_name_convention(texture->type());
+        const auto unit = texture_unit_base(texture->type()) + counts[texture_type]++;
+        CHECKED_GL_CALL(glActiveTexture, GL_TEXTURE0 + unit);
         uniform_name.append(texture_type);
-        const auto count = (counts[texture_type] += 1);
-        uniform_name.append(std::to_string(count));
-        shader->set_int(uniform_name, i);
-        CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, m_textures[i]->id());
+        uniform_name.append(std::to_string(counts[texture_type]));
+        shader->set_int(uniform_name, unit);
+        shader->set_bool("has_" + uniform_name, true);
+        CHECKED_GL_CALL(glBindTexture, GL_TEXTURE_2D, texture->id());
         uniform_name.clear();
+    }
+    if (m_material.alpha_mode == AlphaMode::Blend) {
+        CHECKED_GL_CALL(glEnable, GL_BLEND);
+        CHECKED_GL_CALL(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
     CHECKED_GL_CALL(glBindVertexArray, m_vao);
     CHECKED_GL_CALL(glDrawElements, GL_TRIANGLES, m_num_indices, GL_UNSIGNED_INT, (void *) 0);
     CHECKED_GL_CALL(glBindVertexArray, 0);
+    if (m_material.alpha_mode == AlphaMode::Blend) {
+        CHECKED_GL_CALL(glDisable, GL_BLEND);
+    }
 }
 
 void Mesh::destroy() {
     CHECKED_GL_CALL(glDeleteVertexArrays, 1, &m_vao);
 }
-
 }// namespace engine::resources

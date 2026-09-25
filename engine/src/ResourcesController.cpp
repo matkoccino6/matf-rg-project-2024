@@ -1,17 +1,18 @@
+#include <algorithm>
+#include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <cctype>
 #include <engine/graphics/OpenGL.hpp>
 #include <engine/resources/ResourcesController.hpp>
 #include <engine/resources/ShaderCompiler.hpp>
 #include <engine/util/Configuration.hpp>
 #include <engine/util/Errors.hpp>
 #include <spdlog/spdlog.h>
-#include <unordered_set>
 #include <utility>
 
 namespace engine::resources {
-
 void ResourcesController::initialize() {
     load_shaders();
     load_models();
@@ -34,7 +35,6 @@ void ResourcesController::terminate() {
     }
 }
 
-
 void ResourcesController::load_shaders() {
     if (!exists(m_shaders_path)) {
         spdlog::info("[ResourcesController]: no {} found to load the shaders from", m_shaders_path.string());
@@ -53,7 +53,8 @@ void ResourcesController::load_models() {
     }
     const auto &config = util::Configuration::config();
     if (!config.contains("resources") || !config["resources"].contains("models")) {
-        std::string msg = "No configuration for models in the config.json, please provide the resources config. See the example in the README.md";
+        std::string msg =
+                "No configuration for models in the config.json, please provide the resources config. See the example in the README.md";
         throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
     }
     for (const auto &model_entry: config["resources"]["models"].items()) {
@@ -82,18 +83,19 @@ void ResourcesController::load_skyboxes() {
 }
 
 /**
- * @class AssimpSceneProcessor
- * @brief Processes the meshes in an Assimp scene.
- */
+     * @class AssimpSceneProcessor
+     * @brief Processes the meshes in an Assimp scene.
+     */
 class AssimpSceneProcessor {
 public:
     /**
-     * @brief Processes the meshes in the scene.
-     * @returns The meshes in the scene.
-     */
+         * @brief Processes the meshes in the scene.
+         * @returns The meshes in the scene.
+         */
     std::vector<Mesh> process_meshes();
 
-    explicit AssimpSceneProcessor(ResourcesController *resources_controller, const aiScene *scene, std::filesystem::path model_path)
+    explicit AssimpSceneProcessor(ResourcesController *resources_controller, const aiScene *scene,
+                                  std::filesystem::path model_path)
         : m_scene(scene)
         , m_model_path(std::move(model_path))
         , m_resources_controller(resources_controller) {
@@ -121,10 +123,12 @@ Model *ResourcesController::model(const std::string &name) {
     if (!result) {
         auto &config = util::Configuration::config();
         if (!config["resources"]["models"].contains(name)) {
-            std::string msg = std::format("No model ({}) specify in config.json. Please add the model to the config.json.", name);
+            std::string msg = std::format(
+                    "No model ({}) specify in config.json. Please add the model to the config.json.", name);
             throw util::EngineError(util::EngineError::Type::ConfigurationError, msg);
         }
-        std::filesystem::path model_path = m_models_path / std::filesystem::path(config["resources"]["models"][name]["path"].get<std::string>());
+        std::filesystem::path model_path = m_models_path / std::filesystem::path(
+                                                                   config["resources"]["models"][name]["path"].get<std::string>());
         Assimp::Importer importer;
         int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace;
         if (config["resources"]["models"][name].value<bool>("flip_uvs", false)) {
@@ -134,7 +138,8 @@ Model *ResourcesController::model(const std::string &name) {
         spdlog::info("load_model(name={}, path={})", name, model_path.string());
         const aiScene *scene = importer.ReadFile(model_path, flags);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            std::string msg = std::format("Assimp error while reading model: {} from path {}.", model_path.string(), name);
+            std::string msg = std::format("Assimp error while reading model: {} from path {}.", model_path.string(),
+                                          name);
             throw util::EngineError(util::EngineError::Type::AssetLoadingError, msg);
         }
         AssimpSceneProcessor scene_processor(this, scene, model_path);
@@ -144,11 +149,13 @@ Model *ResourcesController::model(const std::string &name) {
     return result.get();
 }
 
-Texture *ResourcesController::texture(const std::string &name, const std::filesystem::path &path, TextureType type, bool flip_uvs) {
+Texture *ResourcesController::texture(const std::string &name, const std::filesystem::path &path, TextureType type,
+                                      bool flip_uvs) {
     auto &result = m_textures[name];
     if (!result) {
         spdlog::info("load_texture(path={})", path.string());
-        auto texture = graphics::OpenGL::generate_texture(path, flip_uvs);
+        const bool srgb = type == TextureType::Diffuse || type == TextureType::Emissive;
+        auto texture = graphics::OpenGL::generate_texture(path, flip_uvs, srgb);
         result = std::make_unique<Texture>(Texture(texture, type, path, path.stem()));
     }
     return result.get();
@@ -231,17 +238,79 @@ void AssimpSceneProcessor::process_mesh(aiMesh *mesh) {
 
     auto material = m_scene->mMaterials[mesh->mMaterialIndex];
     std::vector<Texture *> textures = process_materials(material);
-    m_meshes.emplace_back(Mesh(vertices, indices, std::move(textures)));
+    Material mesh_material;
+    aiColor4D color;
+    aiString material_name;
+    material->Get(AI_MATKEY_NAME, material_name);
+    if (material->Get(AI_MATKEY_BASE_COLOR, color) != AI_SUCCESS &&
+        material->Get(AI_MATKEY_COLOR_DIFFUSE, color) != AI_SUCCESS) {
+        color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    mesh_material.base_color = {color.r, color.g, color.b, color.a};
+    std::string material_name_lower = material_name.C_Str();
+    std::transform(material_name_lower.begin(), material_name_lower.end(), material_name_lower.begin(),
+                   [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+    const bool is_lamp_material = material_name_lower.find("lamp") != std::string::npos;
+
+    aiColor4D emissive_color;
+    if (is_lamp_material) {
+        mesh_material.emissive_top_only = true;
+        float min_y = mesh->mVertices[0].y;
+        float max_y = min_y;
+        for (unsigned int i = 1; i < mesh->mNumVertices; ++i) {
+            min_y = std::min(min_y, mesh->mVertices[i].y);
+            max_y = std::max(max_y, mesh->mVertices[i].y);
+        }
+        const float height = std::max(max_y - min_y, 0.0001f);
+        mesh_material.emissive_top_start = max_y - height * 0.12f;
+    } else if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive_color) == AI_SUCCESS) {
+        mesh_material.emissive_color = {emissive_color.r, emissive_color.g, emissive_color.b};
+        mesh_material.emissive_strength = 1.0f;
+    }
+    material->Get(AI_MATKEY_METALLIC_FACTOR, mesh_material.metallic);
+    material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mesh_material.roughness);
+    material->Get(AI_MATKEY_OPACITY, mesh_material.opacity);
+    aiString alpha_mode;
+    if (material->Get(AI_MATKEY_GLTF_ALPHAMODE, alpha_mode) == AI_SUCCESS) {
+        const std::string_view mode = alpha_mode.C_Str();
+        if (mode == "BLEND") {
+            mesh_material.alpha_mode = AlphaMode::Blend;
+        } else if (mode == "MASK") {
+            mesh_material.alpha_mode = AlphaMode::Mask;
+        }
+    }
+    if (mesh_material.opacity < 1.0f && mesh_material.alpha_mode == AlphaMode::Opaque) {
+        mesh_material.alpha_mode = AlphaMode::Blend;
+    }
+    material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, mesh_material.alpha_cutoff);
+    spdlog::info(
+            "material(name={}, base_color=({}, {}, {}, {}), metallic={}, roughness={}, opacity={}, transparent={}, "
+            "alpha_cutoff={}, textures={})",
+            material_name.C_Str(), mesh_material.base_color.r, mesh_material.base_color.g,
+            mesh_material.base_color.b, mesh_material.base_color.a, mesh_material.metallic,
+            mesh_material.roughness, mesh_material.opacity,
+            mesh_material.alpha_mode != AlphaMode::Opaque, mesh_material.alpha_cutoff, textures.size());
+    m_meshes.emplace_back(Mesh(vertices, indices, std::move(textures), mesh_material));
 }
 
 std::vector<Texture *> AssimpSceneProcessor::process_materials(const aiMaterial *material) {
     std::vector<Texture *> textures;
     auto ai_texture_types = {
             aiTextureType_DIFFUSE,
+            aiTextureType_BASE_COLOR,
             aiTextureType_SPECULAR,
+            aiTextureType_SHEEN,
             aiTextureType_NORMALS,
+            aiTextureType_NORMAL_CAMERA,
             aiTextureType_HEIGHT,
-    };
+            aiTextureType_GLTF_METALLIC_ROUGHNESS,
+            aiTextureType_METALNESS,
+            aiTextureType_DIFFUSE_ROUGHNESS,
+            aiTextureType_AMBIENT_OCCLUSION,
+            aiTextureType_EMISSIVE,
+            aiTextureType_EMISSION_COLOR,
+            aiTextureType_OPACITY,
+            aiTextureType_TRANSMISSION};
 
     for (auto ai_texture_type: ai_texture_types) {
         process_material_type(textures, material, ai_texture_type);
@@ -249,25 +318,120 @@ std::vector<Texture *> AssimpSceneProcessor::process_materials(const aiMaterial 
     return textures;
 }
 
-void AssimpSceneProcessor::process_material_type(std::vector<Texture *> &textures, const aiMaterial *material, aiTextureType type) {
+void AssimpSceneProcessor::process_material_type(std::vector<Texture *> &textures, const aiMaterial *material,
+                                                 aiTextureType type) {
     auto material_count = material->GetTextureCount(type);
+    aiString material_name_string;
+    material->Get(AI_MATKEY_NAME, material_name_string);
+    const std::string material_name = material_name_string.C_Str();
+    const bool is_fbx = m_model_path.extension() == ".fbx";
+    const auto texture_search_root =
+            is_fbx ? m_model_path.parent_path().parent_path() : m_model_path.parent_path();
+    bool loaded_for_type = false;
+
+    auto load_texture = [&](const std::filesystem::path &texture_path) {
+        if (!exists(texture_path)) {
+            return false;
+        }
+        Texture *texture = m_resources_controller->texture(texture_path.string(), texture_path,
+                                                           assimp_texture_type_to_engine(type));
+        textures.emplace_back(texture);
+        loaded_for_type = true;
+        return true;
+    };
+
+    auto find_fbx_texture = [&](std::string_view suffix) {
+        if (!is_fbx || material_name.empty()) {
+            return;
+        }
+        const std::string prefix = material_name + std::string(suffix);
+        for (const auto &entry: std::filesystem::recursive_directory_iterator(texture_search_root)) {
+            if (entry.is_regular_file() && entry.path().stem().string().starts_with(prefix)) {
+                load_texture(entry.path());
+                return;
+            }
+        }
+    };
+
     for (uint32_t i = 0; i < material_count; ++i) {
         aiString ai_texture_path_string;
         material->GetTexture(type, i, &ai_texture_path_string);
-        std::filesystem::path texture_path = m_model_path.parent_path() / ai_texture_path_string.C_Str();
-        Texture *texture = m_resources_controller->texture(texture_path.string(), texture_path, assimp_texture_type_to_engine(type));
-        textures.emplace_back(texture);
+        std::string texture_reference = ai_texture_path_string.C_Str();
+        std::replace(texture_reference.begin(), texture_reference.end(), '\\', '/');
+        std::filesystem::path texture_path = texture_reference;
+        if (texture_path.is_relative()) {
+            texture_path = m_model_path.parent_path() / texture_path;
+        }
+        if (!exists(texture_path)) {
+            std::string texture_name = texture_path.filename().string();
+            for (const auto &entry: std::filesystem::recursive_directory_iterator(texture_search_root)) {
+                if (entry.is_regular_file() && entry.path().filename() == texture_name) {
+                    texture_path = entry.path();
+                    break;
+                }
+            }
+        }
+        if (!exists(texture_path)) {
+            spdlog::warn("Texture referenced by model {} was not found: {}", m_model_path.string(),
+                         texture_reference);
+            continue;
+        }
+        load_texture(texture_path);
+    }
+
+    if (!loaded_for_type) {
+        switch (type) {
+            case aiTextureType_DIFFUSE:
+                find_fbx_texture("_Base_Color");
+                break;
+            case aiTextureType_NORMALS:
+                find_fbx_texture("_Normal_OpenGL");
+                break;
+            case aiTextureType_METALNESS:
+                find_fbx_texture("_Metallic");
+                break;
+            case aiTextureType_DIFFUSE_ROUGHNESS:
+                find_fbx_texture("_Roughness");
+                break;
+            case aiTextureType_AMBIENT_OCCLUSION:
+                find_fbx_texture("_Mixed_AO");
+                break;
+            case aiTextureType_EMISSIVE:
+                find_fbx_texture("_Emissive");
+                break;
+            case aiTextureType_OPACITY:
+                find_fbx_texture("_Opacity");
+                break;
+            case aiTextureType_SPECULAR:
+                find_fbx_texture("_Specular_level");
+                break;
+            case aiTextureType_TRANSMISSION:
+                find_fbx_texture("_Scattering");
+                break;
+            default: break;
+        }
     }
 }
 
 TextureType AssimpSceneProcessor::assimp_texture_type_to_engine(aiTextureType type) {
     switch (type) {
         case aiTextureType_DIFFUSE: return TextureType::Diffuse;
-        case aiTextureType_SPECULAR: return TextureType::Specular;
+        case aiTextureType_BASE_COLOR: return TextureType::Diffuse;
+        case aiTextureType_SPECULAR: return TextureType::SpecularLevel;
+        case aiTextureType_SHEEN: return TextureType::SpecularLevel;
         case aiTextureType_HEIGHT: return TextureType::Height;
         case aiTextureType_NORMALS: return TextureType::Normal;
-        default: RG_SHOULD_NOT_REACH_HERE("Engine currently doesn't support the aiTextureType: {}", static_cast<int>(type));
+        case aiTextureType_NORMAL_CAMERA: return TextureType::Normal;
+        case aiTextureType_GLTF_METALLIC_ROUGHNESS: return TextureType::MetallicRoughness;
+        case aiTextureType_METALNESS: return TextureType::Metallic;
+        case aiTextureType_DIFFUSE_ROUGHNESS: return TextureType::Roughness;
+        case aiTextureType_AMBIENT_OCCLUSION: return TextureType::Occlusion;
+        case aiTextureType_EMISSIVE: return TextureType::Emissive;
+        case aiTextureType_EMISSION_COLOR: return TextureType::Emissive;
+        case aiTextureType_OPACITY: return TextureType::Opacity;
+        case aiTextureType_TRANSMISSION: return TextureType::Scattering;
+        default: RG_SHOULD_NOT_REACH_HERE("Engine currently doesn't support the aiTextureType: {}",
+                                          static_cast<int>(type));
     }
 }
-
 }// namespace engine::resources

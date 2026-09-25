@@ -1,11 +1,19 @@
 {
   "resources": {
     "models": {
+      "black_lodge": {
+        "path": "apple_black/source/Black Lodge.fbx",
+        "flip_uvs": true
+      },
+      "statue": {
+        "path": "venus-de-milo/scene.gltf",
+        "flip_uvs": true
+      }
     }
   },
   "window": {
-    "height": 600,
+    "height": 720,
     "title": "Hello, window!",
-    "width": 800
+    "width": 1280
   }
 }
